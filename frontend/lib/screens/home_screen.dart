@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
-import '../widgets/custom_text_field.dart';
 import '../widgets/date_field.dart';
 import '../widgets/feature_item.dart';
-import 'result_screen.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import '../widgets/airport_dropdown.dart';
+import '../models/airport.dart';
+import 'flight_results_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,14 +14,10 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final TextEditingController _neredenController = TextEditingController();
-  final TextEditingController _nereyeController = TextEditingController();
-  final TextEditingController _butceController = TextEditingController();
-
+  Airport? _kalkisHavaalani;
+  Airport? _varisHavaalani;
   DateTime? _gidisTarihi;
   DateTime? _donusTarihi;
-
-  bool _yukleniyor = false;
 
   Future<void> _tarihSec({required bool gidis}) async {
     final DateTime? secilen = await showDatePicker(
@@ -55,49 +50,30 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _planOlustur() async {
-    if (_neredenController.text.isEmpty ||
-        _nereyeController.text.isEmpty ||
-        _gidisTarihi == null ||
-        _donusTarihi == null) {
-      _hataGoster("Lütfen tüm alanları doldurun!");
+  void _ucuslariAra() {
+    if (_kalkisHavaalani == null ||
+        _varisHavaalani == null ||
+        _gidisTarihi == null) {
+      _hataGoster("Lütfen kalkış, varış ve tarih seçin!");
       return;
     }
 
-    setState(() => _yukleniyor = true);
-
-    try {
-      var url = Uri.parse('http://127.0.0.1:8000/generate-plan');
-      var response = await http.post(
-        url,
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          'from': _neredenController.text,
-          'to': _nereyeController.text,
-          'budget': double.tryParse(_butceController.text) ?? 0.0,
-          'departure_date': _gidisTarihi!.toIso8601String(),
-          'return_date': _donusTarihi!.toIso8601String(),
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        var jsonResponse = jsonDecode(response.body);
-        if (mounted) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ResultScreen(planVerisi: jsonResponse),
-            ),
-          );
-        }
-      } else {
-        _hataGoster("Sunucu hatası: ${response.statusCode}");
-      }
-    } catch (e) {
-      _hataGoster("Bağlantı hatası! Sunucunun açık olduğundan emin ol.");
-    } finally {
-      setState(() => _yukleniyor = false);
+    if (_kalkisHavaalani!.code == _varisHavaalani!.code) {
+      _hataGoster("Kalkış ve varış aynı olamaz!");
+      return;
     }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => FlightResultsScreen(
+          kalkis: _kalkisHavaalani!,
+          varis: _varisHavaalani!,
+          gidisTarihi: _gidisTarihi!,
+          donusTarihi: _donusTarihi,
+        ),
+      ),
+    );
   }
 
   void _hataGoster(String mesaj) {
@@ -111,194 +87,190 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   @override
-  void dispose() {
-    _neredenController.dispose();
-    _nereyeController.dispose();
-    _butceController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       body: Container(
         decoration: const BoxDecoration(
           gradient: AppTheme.backgroundGradient,
         ),
         child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 20),
-                // Üst Başlık
-                Center(
-                  child: Column(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: const Icon(
-                          Icons.flight_takeoff_rounded,
-                          size: 48,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Rota AI',
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          letterSpacing: 2,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Akıllı Seyahat Planlayıcı',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.white.withOpacity(0.8),
-                        ),
-                      ),
-                    ],
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight,
                   ),
-                ),
-                const SizedBox(height: 40),
-
-                // Seyahat Bilgileri Kartı
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 30,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Seyahat Bilgileri',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.darkColor,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-
-                      CustomTextField(
-                        controller: _neredenController,
-                        label: 'Nereden',
-                        hint: 'Örn: İstanbul',
-                        icon: Icons.flight_takeoff,
-                      ),
-                      const SizedBox(height: 16),
-
-                      CustomTextField(
-                        controller: _nereyeController,
-                        label: 'Nereye',
-                        hint: 'Örn: Antalya',
-                        icon: Icons.flight_land,
-                      ),
-                      const SizedBox(height: 16),
-
-                      Row(
-                        children: [
-                          Expanded(
-                            child: DateField(
-                              label: 'Gidiş Tarihi',
-                              date: _gidisTarihi,
-                              onTap: () => _tarihSec(gidis: true),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: DateField(
-                              label: 'Dönüş Tarihi',
-                              date: _donusTarihi,
-                              onTap: () => _tarihSec(gidis: false),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-
-                      CustomTextField(
-                        controller: _butceController,
-                        label: 'Bütçe (TL)',
-                        hint: 'Örn: 5000',
-                        icon: Icons.account_balance_wallet,
-                        keyboardType: TextInputType.number,
-                      ),
-                      const SizedBox(height: 24),
-
-                      SizedBox(
-                        width: double.infinity,
-                        height: 56,
-                        child: ElevatedButton(
-                          onPressed: _yukleniyor ? null : _planOlustur,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primaryColor,
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
-                          child: _yukleniyor
-                              ? const SizedBox(
-                                  height: 24,
-                                  width: 24,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2.5,
-                                  ),
-                                )
-                              : const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.auto_awesome, size: 20),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      'Yapay Zeka ile Planla',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
+                  child: IntrinsicHeight(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Üst Başlık
+                        Center(
+                          child: Column(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(20),
                                 ),
+                                child: const Icon(
+                                  Icons.flight_takeoff_rounded,
+                                  size: 48,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'Rota AI',
+                                style: TextStyle(
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                  letterSpacing: 2,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Akıllı Uçuş Planlayıcı',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.white.withValues(alpha: 0.8),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 24),
+
+                        // Uçuş Bilgileri Kartı
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(24),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.1),
+                                blurRadius: 30,
+                                offset: const Offset(0, 10),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text(
+                                'Uçuş Bilgileri',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.darkColor,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+
+                              AirportDropdown(
+                                label: 'Kalkış',
+                                icon: Icons.flight_takeoff,
+                                selectedAirport: _kalkisHavaalani,
+                                onChanged: (airport) {
+                                  setState(() => _kalkisHavaalani = airport);
+                                },
+                                excludeAirports: _varisHavaalani != null
+                                    ? [_varisHavaalani!]
+                                    : [],
+                              ),
+                              const SizedBox(height: 12),
+
+                              AirportDropdown(
+                                label: 'Varış',
+                                icon: Icons.flight_land,
+                                selectedAirport: _varisHavaalani,
+                                onChanged: (airport) {
+                                  setState(() => _varisHavaalani = airport);
+                                },
+                                excludeAirports: _kalkisHavaalani != null
+                                    ? [_kalkisHavaalani!]
+                                    : [],
+                              ),
+                              const SizedBox(height: 12),
+
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: DateField(
+                                      label: 'Gidiş',
+                                      date: _gidisTarihi,
+                                      onTap: () => _tarihSec(gidis: true),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: DateField(
+                                      label: 'Dönüş',
+                                      date: _donusTarihi,
+                                      onTap: () => _tarihSec(gidis: false),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 20),
+
+                              SizedBox(
+                                width: double.infinity,
+                                height: 52,
+                                child: ElevatedButton(
+                                  onPressed: _ucuslariAra,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppTheme.primaryColor,
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                  ),
+                                  child: const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.search, size: 20),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'Uçuşları Ara',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Özellikler
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: const [
+                            FeatureItem(icon: Icons.flight, label: 'Uçuşlar'),
+                            FeatureItem(icon: Icons.hotel, label: 'Oteller'),
+                            FeatureItem(icon: Icons.explore, label: 'Gezilecek Yerler'),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(height: 24),
-
-                // Özellikler
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: const [
-                    FeatureItem(icon: Icons.flight, label: 'Uçuşlar'),
-                    FeatureItem(icon: Icons.hotel, label: 'Oteller'),
-                    FeatureItem(icon: Icons.explore, label: 'Gezilecek Yerler'),
-                  ],
-                ),
-                const SizedBox(height: 20),
-              ],
-            ),
+              );
+            },
           ),
         ),
       ),
