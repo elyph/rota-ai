@@ -69,6 +69,7 @@ class PlaceRequest(BaseModel):
     city: str
     radius: int = 5000  # metre cinsinden, varsayılan 5km
     max_results: int = 15
+    filter_type: str = "all"  # all, tourist, food, nature, historical, shopping, entertainment
 
 @app.post("/generate-plan")
 async def create_plan(request: TravelRequest):
@@ -94,9 +95,13 @@ async def get_nearby_places(request: PlaceRequest):
     
     if not GOOGLE_PLACES_API_KEY:
         # API key yoksa mock veri döndür
+        places = _get_mock_places(request.city)
+        # Filtreleme uygula
+        if request.filter_type != "all":
+            places = _filter_places(places, request.filter_type)
         return {
             "status": "success",
-            "places": _get_mock_places(request.city),
+            "places": places,
             "source": "mock"
         }
     
@@ -199,6 +204,49 @@ def _get_mock_places(city: str) -> list:
         ]
     
     return mock_data[city.lower()]
+
+def _filter_places(places: list, filter_type: str) -> list:
+    """Yerleri filtre türüne göre filtreler."""
+    filter_map = {
+        "tourist": {
+            "types": ["tourist_attraction", "museum", "art_gallery", "landmark"],
+            "label": "Turistik"
+        },
+        "food": {
+            "types": ["restaurant", "cafe", "bakery", "bar", "meal_takeaway", "food"],
+            "label": "Yeme-İçme"
+        },
+        "nature": {
+            "types": ["park", "natural_feature", "campground", "beach"],
+            "label": "Doğal"
+        },
+        "historical": {
+            "types": ["historical_place", "museum", "church", "mosque", "synagogue", "hindu_temple", "landmark"],
+            "label": "Tarihi"
+        },
+        "shopping": {
+            "types": ["shopping_mall", "store", "clothing_store", "electronics_store", "book_store"],
+            "label": "Alışveriş"
+        },
+        "entertainment": {
+            "types": ["amusement_park", "zoo", "aquarium", "night_club", "casino", "bowling_alley", "movie_theater"],
+            "label": "Eğlence"
+        },
+    }
+    
+    if filter_type not in filter_map:
+        return places
+    
+    allowed_types = filter_map[filter_type]["types"]
+    filtered = []
+    
+    for place in places:
+        place_types = place.get("types", [])
+        # Eğer yerin türlerinden biri allowed_types içinde varsa ekle
+        if any(t in allowed_types for t in place_types):
+            filtered.append(place)
+    
+    return filtered
 
 @app.get("/cities")
 async def get_cities():

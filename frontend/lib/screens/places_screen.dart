@@ -24,6 +24,18 @@ class _PlacesScreenState extends State<PlacesScreen> {
   String? _hata;
   String? _secilenSehir;
   String? _secilenSehirAdi;
+  String _secilenFiltre = 'all';
+
+  // Filtre seçenekleri
+  final List<Map<String, dynamic>> _filtreler = [
+    {'key': 'all', 'label': 'Tümü', 'icon': Icons.all_inclusive},
+    {'key': 'tourist', 'label': 'Turistik', 'icon': Icons.tour},
+    {'key': 'food', 'label': 'Yeme-İçme', 'icon': Icons.restaurant},
+    {'key': 'nature', 'label': 'Doğal', 'icon': Icons.nature},
+    {'key': 'historical', 'label': 'Tarihi', 'icon': Icons.account_balance},
+    {'key': 'shopping', 'label': 'Alışveriş', 'icon': Icons.shopping_bag},
+    {'key': 'entertainment', 'label': 'Eğlence', 'icon': Icons.celebration},
+  ];
 
   // Şehir listesi
   final List<Map<String, String>> _sehirler = [
@@ -55,17 +67,23 @@ class _PlacesScreenState extends State<PlacesScreen> {
     }
   }
 
-  Future<void> _yerleriGetir() async {
+  Future<void> _yerleriGetir({String? filterType}) async {
     if (_secilenSehir == null) return;
+    
+    final aktifFiltre = filterType ?? _secilenFiltre;
     
     setState(() {
       _yukleniyor = true;
       _hata = null;
+      if (filterType != null) {
+        _secilenFiltre = filterType;
+      }
     });
 
     try {
       final places = await _placesService.getNearbyPlaces(
         city: _secilenSehir!,
+        filterType: aktifFiltre,
       );
       setState(() {
         _places = places;
@@ -292,10 +310,35 @@ class _PlacesScreenState extends State<PlacesScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '${_places!.length} turistik yer bulundu',
+                  '${_places!.length} yer bulundu',
                   style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
                 ),
               ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Filtre butonları
+          SizedBox(
+            height: 42,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: _filtreler.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final filtre = _filtreler[index];
+                final secili = _secilenFiltre == filtre['key'];
+                return _buildFilterChip(
+                  label: filtre['label'] as String,
+                  icon: filtre['icon'] as IconData,
+                  selected: secili,
+                  onTap: () {
+                    if (!secili) {
+                      _yerleriGetir(filterType: filtre['key'] as String);
+                    }
+                  },
+                );
+              },
             ),
           ),
           const SizedBox(height: 16),
@@ -491,6 +534,46 @@ class _PlacesScreenState extends State<PlacesScreen> {
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterChip({
+    required String label,
+    required IconData icon,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: selected
+          ? AppTheme.primaryColor.withValues(alpha: 0.8)
+          : Colors.white.withValues(alpha: 0.1),
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: selected ? Colors.white : Colors.white.withValues(alpha: 0.7),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                  color: selected ? Colors.white : Colors.white.withValues(alpha: 0.7),
+                ),
+              ),
+            ],
           ),
         ),
       ),

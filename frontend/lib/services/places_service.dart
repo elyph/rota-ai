@@ -18,11 +18,12 @@ class PlacesService {
     'Accept': 'application/json',
   };
 
-  /// Belirtilen şehirdeki turistik yerleri getirir
+  /// Belirtilen şehirdeki yerleri getirir (filtreleme destekler)
   Future<List<TouristPlace>> getNearbyPlaces({
     required String city,
     int radius = 5000,
     int maxResults = 15,
+    String filterType = 'all', // all, tourist, food, nature, historical, shopping, entertainment
   }) async {
     try {
       final response = await _client.post(
@@ -32,6 +33,7 @@ class PlacesService {
           'city': city,
           'radius': radius,
           'max_results': maxResults,
+          'filter_type': filterType,
         }),
       );
 
