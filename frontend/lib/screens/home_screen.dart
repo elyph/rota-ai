@@ -3,6 +3,9 @@ import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
 import '../models/popular_place.dart';
 import '../services/popular_places_service.dart';
+import 'flights_screen.dart';
+import 'hotels_screen.dart';
+import 'places_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -87,6 +90,67 @@ class HomeScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 28),
 
+                // ========== HIZLI ERİŞİM ==========
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.flash_on, color: Colors.white, size: 20),
+                    ),
+                    const SizedBox(width: 10),
+                    const Text(
+                      'Hızlı Erişim',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Hızlı erişim kartları
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildQuickAccessCard(
+                        context,
+                        icon: Icons.flight,
+                        label: 'Uçak Bileti',
+                        color: const Color(0xFF4CAF50),
+                        onTap: () => _navigateToTab(context, 1),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildQuickAccessCard(
+                        context,
+                        icon: Icons.hotel,
+                        label: 'Otel Ara',
+                        color: const Color(0xFFFF9800),
+                        onTap: () => _navigateToTab(context, 2),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildQuickAccessCard(
+                        context,
+                        icon: Icons.explore,
+                        label: 'Gezilecek Yerler',
+                        color: const Color(0xFF6C63FF),
+                        onTap: () => _navigateToTab(context, 3),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 28),
+
                 // ========== POPÜLER YERLER BAŞLIĞI ==========
                 Row(
                   children: [
@@ -145,6 +209,71 @@ class HomeScreen extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _navigateToTab(BuildContext context, int tabIndex) {
+    switch (tabIndex) {
+      case 1:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const FlightsScreen()),
+        );
+        break;
+      case 2:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const HotelsScreen()),
+        );
+        break;
+      case 3:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const PlacesScreen()),
+        );
+        break;
+    }
+  }
+
+  Widget _buildQuickAccessCard(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.white.withValues(alpha: 0.1),
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: Colors.white, size: 28),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
         ),
       ),

@@ -493,6 +493,21 @@ class _PlacesScreenState extends State<PlacesScreen> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
+                          // Yorum sayısı
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              Icon(Icons.rate_review_outlined, size: 11, color: Colors.white.withValues(alpha: 0.4)),
+                              const SizedBox(width: 3),
+                              Text(
+                                '${_formatPuan(place.userRatingsTotal)} yorum',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.white.withValues(alpha: 0.4),
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     ),
