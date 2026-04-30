@@ -142,12 +142,17 @@ async def get_nearby_places(request: PlaceRequest):
     try:
         places = await _fetch_places_from_google(lat, lng, request.radius, request.max_results)
         
+        # Düşük kaliteli yerleri ele: en az 50 değerlendirme ve 3.0 rating
+        places = [p for p in places if p.get("userRatingsTotal", 0) >= 50 and p.get("rating", 0) >= 3.0]
+        
         # Popülerlik skoruna göre sırala (rating * userRatingsTotal)
         places.sort(key=lambda p: p.get("rating", 0) * p.get("userRatingsTotal", 0), reverse=True)
         
         # Filtreleme uygula
         if request.filter_type != "all":
             places = _filter_places(places, request.filter_type)
+            # Filtreleme sonrası en fazla 15 yer döndür
+            places = places[:15]
         
         return {"status": "success", "places": places, "source": "google_places"}
     except Exception as e:
@@ -224,10 +229,44 @@ async def _fetch_places_from_google(lat: float, lng: float, radius: int, max_res
             except:
                 pass
     
-    # Popülerlik skoruna göre sırala (rating * userRatingsTotal)
-    all_places.sort(key=lambda p: p.get("rating", 0) * p.get("userRatingsTotal", 0), reverse=True)
+    # Her kategoriden eşit sayıda yer almak için round-robin yap
+    # Önce kategorilere göre grupla
+    # (all_places zaten sıralı değil, her kategoriden 15'er tane var)
+    # Her kategoriden sırayla 1'er tane al, toplam max_results olana kadar
+    result = []
+    seen_ids_rr = set()
     
-    return all_places[:max_results]
+    # Kategorileri takip etmek için her kategoriden kaç tane alındığını say
+    # Basitçe: her kategoriden ilk 3-4'ü al
+    category_counts = {}
+    for place in all_places:
+        pid = place["id"]
+        if pid in seen_ids_rr:
+            continue
+        # place'in hangi kategoride olduğunu bul (ilk type'ına göre)
+        types = place.get("types", [])
+        category = types[0] if types else "unknown"
+        if category not in category_counts:
+            category_counts[category] = 0
+        if category_counts[category] < 4:  # her kategoriden en fazla 4
+            seen_ids_rr.add(pid)
+            category_counts[category] += 1
+            result.append(place)
+    
+    # Hala 50'den azsa, kalanları popülerlik sırasına göre ekle
+    if len(result) < max_results:
+        for place in all_places:
+            if len(result) >= max_results:
+                break
+            pid = place["id"]
+            if pid not in seen_ids_rr:
+                seen_ids_rr.add(pid)
+                result.append(place)
+    
+    # Popülerlik skoruna göre sırala
+    result.sort(key=lambda p: p.get("rating", 0) * p.get("userRatingsTotal", 0), reverse=True)
+    
+    return result[:max_results]
 
 def _filter_places(places: list, filter_type: str) -> list:
     """Yerleri filtre türüne göre filtreler."""
@@ -262,7 +301,7 @@ def _filter_places(places: list, filter_type: str) -> list:
         return places
     
     allowed_types = filter_map[filter_type]["types"]
-    generic_types = {"tourist_attraction", "point_of_interest", "establishment", "lodging"}
+    generic_types = {"point_of_interest", "establishment", "lodging"}
     
     filtered = []
     

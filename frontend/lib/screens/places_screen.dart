@@ -37,33 +37,36 @@ class _PlacesScreenState extends State<PlacesScreen> {
     {'key': 'entertainment', 'label': 'Eğlence', 'icon': Icons.celebration},
   ];
 
-  // Şehir listesi
-  final List<Map<String, String>> _sehirler = [
-    {'name': 'İstanbul', 'key': 'istanbul'},
-    {'name': 'Ankara', 'key': 'ankara'},
-    {'name': 'İzmir', 'key': 'izmir'},
-    {'name': 'Antalya', 'key': 'antalya'},
-    {'name': 'Muğla', 'key': 'muğla'},
-    {'name': 'Trabzon', 'key': 'trabzon'},
-    {'name': 'Adana', 'key': 'adana'},
-    {'name': 'Nevşehir', 'key': 'nevşehir'},
-    {'name': 'Gaziantep', 'key': 'gaziantep'},
-    {'name': 'Erzurum', 'key': 'erzurum'},
-    {'name': 'Samsun', 'key': 'samsun'},
-    {'name': 'Bursa', 'key': 'bursa'},
-    {'name': 'Konya', 'key': 'konya'},
-    {'name': 'Mardin', 'key': 'mardin'},
-    {'name': 'Edirne', 'key': 'edirne'},
-    {'name': 'Çanakkale', 'key': 'çanakkale'},
-  ];
+  // Şehir listesi - backend'den çekilecek
+  List<Map<String, String>> _sehirler = [];
+  bool _sehirlerYukleniyor = false;
 
   @override
   void initState() {
     super.initState();
+    _sehirleriYukle();
     if (widget.cityKey != null && widget.cityName != null) {
       _secilenSehir = widget.cityKey;
       _secilenSehirAdi = widget.cityName;
       _yerleriGetir();
+    }
+  }
+
+  Future<void> _sehirleriYukle() async {
+    try {
+      final sehirler = await _placesService.getCities();
+      if (mounted) {
+        setState(() {
+          _sehirler = sehirler;
+          _sehirlerYukleniyor = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _sehirlerYukleniyor = false;
+        });
+      }
     }
   }
 
@@ -202,76 +205,113 @@ class _PlacesScreenState extends State<PlacesScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          const Text(
-            'Popüler Şehirler',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
+          Row(
+            children: [
+              const Text(
+                'Tüm Şehirler',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '${_sehirler.length} şehir',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.white.withValues(alpha: 0.6),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
-          ...List.generate(_sehirler.length, (index) {
-            final sehir = _sehirler[index];
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Material(
-                color: Colors.white.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(14),
-                child: InkWell(
+          if (_sehirlerYukleniyor)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(32),
+                child: CircularProgressIndicator(color: Colors.white),
+              ),
+            )
+          else if (_sehirler.isEmpty)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  children: [
+                    Icon(Icons.cloud_off, size: 48, color: Colors.white.withValues(alpha: 0.5)),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Şehirler yüklenemedi. Backend\'in çalıştığından emin olun.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            ...List.generate(_sehirler.length, (index) {
+              final sehir = _sehirler[index];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Material(
+                  color: Colors.white.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(14),
-                  onTap: () {
-                    setState(() {
-                      _secilenSehir = sehir['key'];
-                      _secilenSehirAdi = sehir['name'];
-                    });
-                    _yerleriGetir();
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.all(14),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryColor.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Center(
-                            child: Text(
-                              '${index + 1}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: () {
+                      setState(() {
+                        _secilenSehir = sehir['key'];
+                        _secilenSehirAdi = sehir['name'];
+                      });
+                      _yerleriGetir();
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Center(
+                              child: Text(
+                                '${index + 1}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Text(
-                            sehir['name']!,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Text(
+                              sehir['name']!,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ),
-                        ),
-                        Icon(
-                          Icons.arrow_forward_ios,
-                          size: 14,
-                          color: Colors.white.withValues(alpha: 0.4),
-                        ),
-                      ],
+                          Icon(
+                            Icons.arrow_forward_ios,
+                            size: 14,
+                            color: Colors.white.withValues(alpha: 0.4),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-            );
-          }),
+              );
+            }),
         ],
       ),
     );

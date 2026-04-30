@@ -19,10 +19,11 @@ class PlacesService {
   };
 
   /// Belirtilen şehirdeki yerleri getirir (filtreleme destekler)
+  /// Tümü'nde 50 yer, filtrelerde 15 yer döner
   Future<List<TouristPlace>> getNearbyPlaces({
     required String city,
     int radius = 5000,
-    int maxResults = 15,
+    int maxResults = 50,
     String filterType = 'all', // all, tourist, food, nature, historical, shopping, entertainment
   }) async {
     try {
