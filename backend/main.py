@@ -107,6 +107,9 @@ async def get_nearby_places(request: PlaceRequest):
     
     try:
         places = await _fetch_places_from_google(lat, lng, request.radius, request.max_results)
+        # Filtreleme uygula
+        if request.filter_type != "all":
+            places = _filter_places(places, request.filter_type)
         return {"status": "success", "places": places, "source": "google_places"}
     except Exception as e:
         return {"status": "error", "message": str(e), "places": []}
@@ -206,7 +209,12 @@ def _get_mock_places(city: str) -> list:
     return mock_data[city.lower()]
 
 def _filter_places(places: list, filter_type: str) -> list:
-    """Yerleri filtre türüne göre filtreler."""
+    """Yerleri filtre türüne göre filtreler.
+    
+    Google Places API'den gelen yerlerin types listesinde genellikle
+    'tourist_attraction', 'point_of_interest', 'establishment' gibi
+    genel türler bulunur. Bu fonksiyon, spesifik türlere göre filtreleme yapar.
+    """
     filter_map = {
         "tourist": {
             "types": ["tourist_attraction", "museum", "art_gallery", "landmark"],
@@ -238,12 +246,26 @@ def _filter_places(places: list, filter_type: str) -> list:
         return places
     
     allowed_types = filter_map[filter_type]["types"]
+    # Genel türler - bunlar tek başlarına hiçbir spesifik filtreye ait değil
+    generic_types = {"tourist_attraction", "point_of_interest", "establishment", "lodging"}
+    
     filtered = []
     
     for place in places:
         place_types = place.get("types", [])
-        # Eğer yerin türlerinden biri allowed_types içinde varsa ekle
-        if any(t in allowed_types for t in place_types):
+        
+        # Yerin tüm türlerini al
+        place_type_set = set(place_types)
+        
+        # Sadece genel türlerden oluşuyorsa (spesifik türü yoksa) atla
+        specific_types = place_type_set - generic_types
+        
+        # Eğer hiç spesifik türü yoksa, bu yer hiçbir kategoriye ait değil demektir
+        if not specific_types:
+            continue
+        
+        # Eğer yerin spesifik türlerinden biri allowed_types içinde varsa ekle
+        if any(t in allowed_types for t in specific_types):
             filtered.append(place)
     
     return filtered
