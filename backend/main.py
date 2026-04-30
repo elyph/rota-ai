@@ -4,7 +4,6 @@ from fastapi.middleware.cors import CORSMiddleware
 import httpx
 import os
 from dotenv import load_dotenv
-import asyncio
 
 load_dotenv()
 
@@ -20,7 +19,7 @@ app.add_middleware(
 
 GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY", "")
 
-# Şehirlerin koordinatları (enlem, boylam)
+# 81 ilin tamamı + KKTC
 CITY_COORDINATES = {
     "adana": (37.0000, 35.3213),
     "adiyaman": (37.7644, 38.2764),
@@ -29,9 +28,13 @@ CITY_COORDINATES = {
     "amasya": (40.6499, 35.8322),
     "ankara": (39.9334, 32.8597),
     "antalya": (36.8841, 30.7056),
+    "ardahan": (41.1105, 42.7022),
     "artvin": (41.1828, 41.8183),
     "aydın": (37.8560, 27.8416),
     "balıkesir": (39.6484, 27.8826),
+    "bartın": (41.6344, 32.3375),
+    "batman": (37.8812, 41.1351),
+    "bayburt": (40.2556, 40.2249),
     "bilecik": (40.1451, 29.9799),
     "bingöl": (38.8855, 40.4966),
     "bitlis": (38.4000, 42.1000),
@@ -43,6 +46,7 @@ CITY_COORDINATES = {
     "çorum": (40.5506, 34.9556),
     "denizli": (37.7765, 29.0864),
     "diyarbakır": (37.9144, 40.2306),
+    "düzce": (40.8438, 31.1565),
     "edirne": (41.6771, 26.5557),
     "elazığ": (38.6810, 39.2264),
     "erzincan": (39.7500, 39.5000),
@@ -63,6 +67,7 @@ CITY_COORDINATES = {
     "kars": (40.6167, 43.1000),
     "kastamonu": (41.3887, 33.7827),
     "kayseri": (38.7312, 35.4787),
+    "kilis": (36.7184, 37.1212),
     "kırıkkale": (39.8468, 33.5153),
     "kırklareli": (41.7333, 27.2167),
     "kırşehir": (39.1461, 34.1606),
@@ -96,7 +101,6 @@ CITY_COORDINATES = {
     "yalova": (40.6550, 29.2769),
     "yozgat": (39.8181, 34.8147),
     "zonguldak": (41.4564, 31.7987),
-    "lefkoşa": (35.1856, 33.3823),
 }
 
 class TravelRequest(BaseModel):
@@ -107,7 +111,7 @@ class TravelRequest(BaseModel):
 class PlaceRequest(BaseModel):
     city: str
     radius: int = 5000
-    max_results: int = 15
+    max_results: int = 50
     filter_type: str = "all"
 
 @app.post("/generate-plan")
@@ -153,7 +157,7 @@ async def _fetch_places_from_google(lat: float, lng: float, radius: int, max_res
     """Google Places API'den tüm kategorilerdeki yerleri çeker ve popülerlik skoruna göre sıralar."""
     url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
     
-    # Tüm kategorilerde ara
+    # Her kategoriden 15'er yer çek
     search_types = [
         "tourist_attraction",
         "museum",
@@ -190,10 +194,14 @@ async def _fetch_places_from_google(lat: float, lng: float, radius: int, max_res
                 data = response.json()
                 
                 if data.get("status") == "OK":
+                    count = 0
                     for place in data.get("results", []):
+                        if count >= 15:
+                            break
                         place_id = place.get("place_id", "")
                         if place_id and place_id not in seen_ids:
                             seen_ids.add(place_id)
+                            count += 1
                             
                             photo_url = ""
                             if "photos" in place and len(place["photos"]) > 0:
@@ -282,9 +290,13 @@ async def get_cities():
         {"name": "Amasya", "key": "amasya"},
         {"name": "Ankara", "key": "ankara"},
         {"name": "Antalya", "key": "antalya"},
+        {"name": "Ardahan", "key": "ardahan"},
         {"name": "Artvin", "key": "artvin"},
         {"name": "Aydın", "key": "aydın"},
         {"name": "Balıkesir", "key": "balıkesir"},
+        {"name": "Bartın", "key": "bartın"},
+        {"name": "Batman", "key": "batman"},
+        {"name": "Bayburt", "key": "bayburt"},
         {"name": "Bilecik", "key": "bilecik"},
         {"name": "Bingöl", "key": "bingöl"},
         {"name": "Bitlis", "key": "bitlis"},
@@ -296,6 +308,7 @@ async def get_cities():
         {"name": "Çorum", "key": "çorum"},
         {"name": "Denizli", "key": "denizli"},
         {"name": "Diyarbakır", "key": "diyarbakır"},
+        {"name": "Düzce", "key": "düzce"},
         {"name": "Edirne", "key": "edirne"},
         {"name": "Elazığ", "key": "elazığ"},
         {"name": "Erzincan", "key": "erzincan"},
@@ -316,6 +329,7 @@ async def get_cities():
         {"name": "Kars", "key": "kars"},
         {"name": "Kastamonu", "key": "kastamonu"},
         {"name": "Kayseri", "key": "kayseri"},
+        {"name": "Kilis", "key": "kilis"},
         {"name": "Kırıkkale", "key": "kırıkkale"},
         {"name": "Kırklareli", "key": "kırklareli"},
         {"name": "Kırşehir", "key": "kırşehir"},
