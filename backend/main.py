@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import httpx
 import os
 from dotenv import load_dotenv
+import asyncio
 
 load_dotenv()
 
@@ -21,44 +22,82 @@ GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY", "")
 
 # Şehirlerin koordinatları (enlem, boylam)
 CITY_COORDINATES = {
-    "istanbul": (41.0082, 28.9784),
-    "ankara": (39.9334, 32.8597),
-    "izmir": (38.4192, 27.1287),
-    "antalya": (36.8841, 30.7056),
-    "muğla": (37.2153, 28.3636),
-    "trabzon": (41.0027, 39.7168),
     "adana": (37.0000, 35.3213),
-    "nevşehir": (38.6244, 34.7239),
-    "gaziantep": (37.0662, 37.3833),
-    "erzurum": (39.9043, 41.2679),
-    "samsun": (41.2867, 36.3300),
+    "adiyaman": (37.7644, 38.2764),
+    "afyonkarahisar": (38.7568, 30.5387),
+    "ağrı": (39.7191, 43.0503),
+    "amasya": (40.6499, 35.8322),
+    "ankara": (39.9334, 32.8597),
+    "antalya": (36.8841, 30.7056),
+    "artvin": (41.1828, 41.8183),
+    "aydın": (37.8560, 27.8416),
+    "balıkesir": (39.6484, 27.8826),
+    "bilecik": (40.1451, 29.9799),
+    "bingöl": (38.8855, 40.4966),
+    "bitlis": (38.4000, 42.1000),
+    "bolu": (40.7359, 31.6061),
+    "burdur": (37.7204, 30.2908),
     "bursa": (40.1826, 29.0669),
-    "konya": (37.8746, 32.4932),
-    "mardin": (37.3122, 40.7351),
-    "edirne": (41.6771, 26.5557),
     "çanakkale": (40.1553, 26.4142),
+    "çankırı": (40.6013, 33.6134),
+    "çorum": (40.5506, 34.9556),
+    "denizli": (37.7765, 29.0864),
+    "diyarbakır": (37.9144, 40.2306),
+    "edirne": (41.6771, 26.5557),
+    "elazığ": (38.6810, 39.2264),
+    "erzincan": (39.7500, 39.5000),
+    "erzurum": (39.9043, 41.2679),
+    "eskişehir": (39.7667, 30.5256),
+    "gaziantep": (37.0662, 37.3833),
+    "giresun": (40.9128, 38.3895),
+    "gümüşhane": (40.4600, 39.4800),
+    "hakkari": (37.5833, 43.7333),
+    "hatay": (36.4018, 36.3498),
+    "ığdır": (39.9208, 44.0450),
+    "ısparta": (37.7648, 30.5566),
+    "istanbul": (41.0082, 28.9784),
+    "izmir": (38.4192, 27.1287),
+    "kahramanmaraş": (37.5858, 36.9371),
+    "karabük": (41.2061, 32.6200),
+    "karaman": (37.1811, 33.2150),
+    "kars": (40.6167, 43.1000),
+    "kastamonu": (41.3887, 33.7827),
+    "kayseri": (38.7312, 35.4787),
+    "kırıkkale": (39.8468, 33.5153),
+    "kırklareli": (41.7333, 27.2167),
+    "kırşehir": (39.1461, 34.1606),
+    "kocaeli": (40.7654, 29.9408),
+    "konya": (37.8746, 32.4932),
+    "kütahya": (39.4167, 29.9833),
+    "malatya": (38.3552, 38.3095),
+    "manisa": (38.6191, 27.4289),
+    "mardin": (37.3122, 40.7351),
+    "mersin": (36.8000, 34.6333),
+    "muğla": (37.2153, 28.3636),
+    "muş": (38.7433, 41.5064),
+    "nevşehir": (38.6244, 34.7239),
+    "niğde": (37.9667, 34.6833),
+    "ordu": (40.9839, 37.8764),
+    "osmaniye": (37.0742, 36.2464),
+    "rize": (41.0201, 40.5234),
+    "sakarya": (40.7569, 30.3781),
+    "samsun": (41.2867, 36.3300),
+    "siirt": (37.9333, 41.9500),
+    "sinop": (42.0264, 35.1551),
+    "sivas": (39.7477, 37.0179),
+    "şanlıurfa": (37.1591, 38.7969),
+    "şırnak": (37.5167, 42.4500),
+    "tekirdağ": (40.9833, 27.5167),
+    "tokat": (40.3167, 36.5500),
+    "trabzon": (41.0027, 39.7168),
+    "tunceli": (39.1079, 39.5401),
+    "uşak": (38.6823, 29.4082),
+    "van": (38.4891, 43.4089),
+    "yalova": (40.6550, 29.2769),
+    "yozgat": (39.8181, 34.8147),
+    "zonguldak": (41.4564, 31.7987),
     "lefkoşa": (35.1856, 33.3823),
 }
-
-# Turistik yer türleri (Google Places types)
-TOURIST_PLACE_TYPES = [
-    "tourist_attraction",
-    "museum",
-    "park",
-    "historical_place",
-    "art_gallery",
-    "amusement_park",
-    "zoo",
-    "aquarium",
-    "church",
-    "mosque",
-    "synagogue",
-    "hindu_temple",
-    "landmark",
-    "natural_feature",
-    "point_of_interest",
-    "establishment",
-]
 
 class TravelRequest(BaseModel):
     city: str
@@ -67,9 +106,9 @@ class TravelRequest(BaseModel):
 
 class PlaceRequest(BaseModel):
     city: str
-    radius: int = 5000  # metre cinsinden, varsayılan 5km
+    radius: int = 5000
     max_results: int = 15
-    filter_type: str = "all"  # all, tourist, food, nature, historical, shopping, entertainment
+    filter_type: str = "all"
 
 @app.post("/generate-plan")
 async def create_plan(request: TravelRequest):
@@ -94,127 +133,96 @@ async def get_nearby_places(request: PlaceRequest):
     lat, lng = CITY_COORDINATES[city_lower]
     
     if not GOOGLE_PLACES_API_KEY:
-        # API key yoksa mock veri döndür
-        places = _get_mock_places(request.city)
-        # Filtreleme uygula
-        if request.filter_type != "all":
-            places = _filter_places(places, request.filter_type)
-        return {
-            "status": "success",
-            "places": places,
-            "source": "mock"
-        }
+        return {"status": "error", "message": "Google Places API anahtarı bulunamadı.", "places": []}
     
     try:
         places = await _fetch_places_from_google(lat, lng, request.radius, request.max_results)
+        
+        # Popülerlik skoruna göre sırala (rating * userRatingsTotal)
+        places.sort(key=lambda p: p.get("rating", 0) * p.get("userRatingsTotal", 0), reverse=True)
+        
         # Filtreleme uygula
         if request.filter_type != "all":
             places = _filter_places(places, request.filter_type)
+        
         return {"status": "success", "places": places, "source": "google_places"}
     except Exception as e:
         return {"status": "error", "message": str(e), "places": []}
 
 async def _fetch_places_from_google(lat: float, lng: float, radius: int, max_results: int):
-    """Google Places API (Nearby Search) ile turistik yerleri çeker."""
+    """Google Places API'den tüm kategorilerdeki yerleri çeker ve popülerlik skoruna göre sıralar."""
     url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
     
-    params = {
-        "location": f"{lat},{lng}",
-        "radius": radius,
-        "type": "tourist_attraction",
-        "key": GOOGLE_PLACES_API_KEY,
-        "language": "tr",
-    }
+    # Tüm kategorilerde ara
+    search_types = [
+        "tourist_attraction",
+        "museum",
+        "park",
+        "restaurant",
+        "shopping_mall",
+        "amusement_park",
+        "night_club",
+        "art_gallery",
+        "landmark",
+        "natural_feature",
+        "mosque",
+        "church",
+        "historical_place",
+        "cafe",
+        "bar",
+    ]
+    
+    all_places = []
+    seen_ids = set()
     
     async with httpx.AsyncClient() as client:
-        response = await client.get(url, params=params)
-        data = response.json()
+        for search_type in search_types:
+            params = {
+                "location": f"{lat},{lng}",
+                "radius": radius,
+                "type": search_type,
+                "key": GOOGLE_PLACES_API_KEY,
+                "language": "tr",
+            }
+            
+            try:
+                response = await client.get(url, params=params)
+                data = response.json()
+                
+                if data.get("status") == "OK":
+                    for place in data.get("results", []):
+                        place_id = place.get("place_id", "")
+                        if place_id and place_id not in seen_ids:
+                            seen_ids.add(place_id)
+                            
+                            photo_url = ""
+                            if "photos" in place and len(place["photos"]) > 0:
+                                photo_ref = place["photos"][0]["photo_reference"]
+                                photo_url = f"https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference={photo_ref}&key={GOOGLE_PLACES_API_KEY}"
+                            
+                            all_places.append({
+                                "id": place_id,
+                                "name": place.get("name", ""),
+                                "address": place.get("vicinity", ""),
+                                "rating": place.get("rating", 0),
+                                "userRatingsTotal": place.get("user_ratings_total", 0),
+                                "types": place.get("types", []),
+                                "photoUrl": photo_url,
+                                "latitude": place["geometry"]["location"]["lat"] if "geometry" in place else 0,
+                                "longitude": place["geometry"]["location"]["lng"] if "geometry" in place else 0,
+                                "priceLevel": place.get("price_level", 0),
+                                "openNow": place.get("opening_hours", {}).get("open_now") if "opening_hours" in place else None,
+                            })
+            except:
+                pass
     
-    if data.get("status") != "OK" and data.get("status") != "ZERO_RESULTS":
-        # İlk deneme başarısız olursa, daha geniş türlerle dene
-        params.pop("type", None)
-        params["keyword"] = "tourist attraction museum historical"
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, params=params)
-            data = response.json()
+    # Popülerlik skoruna göre sırala (rating * userRatingsTotal)
+    all_places.sort(key=lambda p: p.get("rating", 0) * p.get("userRatingsTotal", 0), reverse=True)
     
-    results = data.get("results", [])[:max_results]
-    
-    places = []
-    for place in results:
-        photo_url = ""
-        if "photos" in place and len(place["photos"]) > 0:
-            photo_ref = place["photos"][0]["photo_reference"]
-            photo_url = f"https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference={photo_ref}&key={GOOGLE_PLACES_API_KEY}"
-        
-        places.append({
-            "id": place.get("place_id", ""),
-            "name": place.get("name", ""),
-            "address": place.get("vicinity", ""),
-            "rating": place.get("rating", 0),
-            "userRatingsTotal": place.get("user_ratings_total", 0),
-            "types": place.get("types", []),
-            "photoUrl": photo_url,
-            "latitude": place["geometry"]["location"]["lat"] if "geometry" in place else 0,
-            "longitude": place["geometry"]["location"]["lng"] if "geometry" in place else 0,
-            "priceLevel": place.get("price_level", 0),
-            "openNow": place.get("opening_hours", {}).get("open_now") if "opening_hours" in place else None,
-        })
-    
-    return places
-
-def _get_mock_places(city: str) -> list:
-    """API key yoksa gösterilecek örnek veriler."""
-    mock_data = {
-        "istanbul": [
-            {"id": "1", "name": "Ayasofya Camii", "address": "Sultanahmet, Fatih", "rating": 4.8, "userRatingsTotal": 45000, "types": ["historical_place", "mosque"], "photoUrl": "", "latitude": 41.0086, "longitude": 28.9802, "priceLevel": 0, "openNow": True},
-            {"id": "2", "name": "Topkapı Sarayı", "address": "Sultanahmet, Fatih", "rating": 4.7, "userRatingsTotal": 38000, "types": ["historical_place", "museum"], "photoUrl": "", "latitude": 41.0115, "longitude": 28.9833, "priceLevel": 2, "openNow": True},
-            {"id": "3", "name": "Sultanahmet Camii (Mavi Camii)", "address": "Sultanahmet, Fatih", "rating": 4.7, "userRatingsTotal": 32000, "types": ["historical_place", "mosque"], "photoUrl": "", "latitude": 41.0054, "longitude": 28.9768, "priceLevel": 0, "openNow": True},
-            {"id": "4", "name": "Kapalıçarşı", "address": "Beyazıt, Fatih", "rating": 4.4, "userRatingsTotal": 28000, "types": ["shopping_mall"], "photoUrl": "", "latitude": 41.0107, "longitude": 28.9680, "priceLevel": 2, "openNow": True},
-            {"id": "5", "name": "Yerebatan Sarnıcı", "address": "Sultanahmet, Fatih", "rating": 4.6, "userRatingsTotal": 25000, "types": ["historical_place"], "photoUrl": "", "latitude": 41.0084, "longitude": 28.9779, "priceLevel": 2, "openNow": True},
-            {"id": "6", "name": "Galata Kulesi", "address": "Beyoğlu", "rating": 4.6, "userRatingsTotal": 22000, "types": ["historical_place", "landmark"], "photoUrl": "", "latitude": 41.0256, "longitude": 28.9741, "priceLevel": 2, "openNow": True},
-            {"id": "7", "name": "Dolmabahçe Sarayı", "address": "Beşiktaş", "rating": 4.7, "userRatingsTotal": 18000, "types": ["historical_place", "museum"], "photoUrl": "", "latitude": 41.0392, "longitude": 29.0001, "priceLevel": 2, "openNow": True},
-            {"id": "8", "name": "İstanbul Modern Sanat Müzesi", "address": "Karaköy, Beyoğlu", "rating": 4.5, "userRatingsTotal": 8000, "types": ["museum", "art_gallery"], "photoUrl": "", "latitude": 41.0269, "longitude": 28.9861, "priceLevel": 2, "openNow": True},
-        ],
-        "ankara": [
-            {"id": "a1", "name": "Anıtkabir", "address": "Çankaya", "rating": 4.9, "userRatingsTotal": 35000, "types": ["historical_place", "museum"], "photoUrl": "", "latitude": 39.9255, "longitude": 32.8370, "priceLevel": 0, "openNow": True},
-            {"id": "a2", "name": "Anadolu Medeniyetleri Müzesi", "address": "Ulus, Altındağ", "rating": 4.7, "userRatingsTotal": 12000, "types": ["museum"], "photoUrl": "", "latitude": 39.9385, "longitude": 32.8619, "priceLevel": 2, "openNow": True},
-            {"id": "a3", "name": "Kocatepe Camii", "address": "Kocatepe, Çankaya", "rating": 4.7, "userRatingsTotal": 10000, "types": ["mosque"], "photoUrl": "", "latitude": 39.9167, "longitude": 32.8600, "priceLevel": 0, "openNow": True},
-            {"id": "a4", "name": "Atakule", "address": "Çankaya", "rating": 4.3, "userRatingsTotal": 15000, "types": ["landmark"], "photoUrl": "", "latitude": 39.8898, "longitude": 32.8642, "priceLevel": 1, "openNow": True},
-            {"id": "a5", "name": "Gençlik Parkı", "address": "Ulus, Altındağ", "rating": 4.2, "userRatingsTotal": 18000, "types": ["park"], "photoUrl": "", "latitude": 39.9417, "longitude": 32.8517, "priceLevel": 0, "openNow": True},
-        ],
-        "izmir": [
-            {"id": "i1", "name": "Kordon Boyu", "address": "Alsancak, Konak", "rating": 4.7, "userRatingsTotal": 25000, "types": ["natural_feature"], "photoUrl": "", "latitude": 38.4342, "longitude": 27.1425, "priceLevel": 0, "openNow": True},
-            {"id": "i2", "name": "Efes Antik Kenti", "address": "Selçuk", "rating": 4.8, "userRatingsTotal": 20000, "types": ["historical_place"], "photoUrl": "", "latitude": 37.9397, "longitude": 27.3408, "priceLevel": 2, "openNow": True},
-            {"id": "i3", "name": "Kemeraltı Çarşısı", "address": "Konak", "rating": 4.4, "userRatingsTotal": 12000, "types": ["shopping_mall"], "photoUrl": "", "latitude": 38.4189, "longitude": 27.1286, "priceLevel": 1, "openNow": True},
-            {"id": "i4", "name": "Saat Kulesi", "address": "Konak Meydanı", "rating": 4.5, "userRatingsTotal": 14000, "types": ["landmark"], "photoUrl": "", "latitude": 38.4189, "longitude": 27.1286, "priceLevel": 0, "openNow": True},
-            {"id": "i5", "name": "Şirince Köyü", "address": "Selçuk", "rating": 4.5, "userRatingsTotal": 9000, "types": ["tourist_attraction"], "photoUrl": "", "latitude": 37.9414, "longitude": 27.4333, "priceLevel": 1, "openNow": True},
-        ],
-        "antalya": [
-            {"id": "an1", "name": "Kaleiçi", "address": "Muratpaşa", "rating": 4.7, "userRatingsTotal": 18000, "types": ["historical_place"], "photoUrl": "", "latitude": 36.8874, "longitude": 30.7056, "priceLevel": 1, "openNow": True},
-            {"id": "an2", "name": "Düden Şelalesi", "address": "Düdenbaşı", "rating": 4.5, "userRatingsTotal": 15000, "types": ["natural_feature", "park"], "photoUrl": "", "latitude": 36.9450, "longitude": 30.7950, "priceLevel": 1, "openNow": True},
-            {"id": "an3", "name": "Olympos Teleferik", "address": "Kemer", "rating": 4.6, "userRatingsTotal": 11000, "types": ["tourist_attraction"], "photoUrl": "", "latitude": 36.5369, "longitude": 30.5617, "priceLevel": 3, "openNow": True},
-            {"id": "an4", "name": "Antalya Müzesi", "address": "Konyaaltı", "rating": 4.7, "userRatingsTotal": 8000, "types": ["museum"], "photoUrl": "", "latitude": 36.8869, "longitude": 30.6794, "priceLevel": 2, "openNow": True},
-            {"id": "an5", "name": "Konyaaltı Plajı", "address": "Konyaaltı", "rating": 4.5, "userRatingsTotal": 12000, "types": ["natural_feature"], "photoUrl": "", "latitude": 36.8600, "longitude": 30.6400, "priceLevel": 0, "openNow": True},
-        ],
-    }
-    
-    # Şehir mock data'da yoksa genel bir yanıt döndür
-    if city.lower() not in mock_data:
-        return [
-            {"id": "gen1", "name": f"{city} Şehir Merkezi", "address": f"{city} Merkez", "rating": 4.3, "userRatingsTotal": 5000, "types": ["tourist_attraction"], "photoUrl": "", "latitude": 0, "longitude": 0, "priceLevel": 0, "openNow": True},
-            {"id": "gen2", "name": f"{city} Müzesi", "address": f"{city} Merkez", "rating": 4.2, "userRatingsTotal": 3000, "types": ["tourist_attraction", "museum"], "photoUrl": "", "latitude": 0, "longitude": 0, "priceLevel": 1, "openNow": True},
-        ]
-    
-    return mock_data[city.lower()]
+    return all_places[:max_results]
 
 def _filter_places(places: list, filter_type: str) -> list:
-    """Yerleri filtre türüne göre filtreler.
-    
-    Google Places API'den gelen yerlerin types listesinde genellikle
-    'tourist_attraction', 'point_of_interest', 'establishment' gibi
-    genel türler bulunur. Bu fonksiyon, spesifik türlere göre filtreleme yapar.
-    """
+    """Yerleri filtre türüne göre filtreler."""
     filter_map = {
         "tourist": {
             "types": ["tourist_attraction", "museum", "art_gallery", "landmark"],
@@ -246,25 +254,18 @@ def _filter_places(places: list, filter_type: str) -> list:
         return places
     
     allowed_types = filter_map[filter_type]["types"]
-    # Genel türler - bunlar tek başlarına hiçbir spesifik filtreye ait değil
     generic_types = {"tourist_attraction", "point_of_interest", "establishment", "lodging"}
     
     filtered = []
     
     for place in places:
         place_types = place.get("types", [])
-        
-        # Yerin tüm türlerini al
         place_type_set = set(place_types)
-        
-        # Sadece genel türlerden oluşuyorsa (spesifik türü yoksa) atla
         specific_types = place_type_set - generic_types
         
-        # Eğer hiç spesifik türü yoksa, bu yer hiçbir kategoriye ait değil demektir
         if not specific_types:
             continue
         
-        # Eğer yerin spesifik türlerinden biri allowed_types içinde varsa ekle
         if any(t in allowed_types for t in specific_types):
             filtered.append(place)
     
@@ -272,24 +273,82 @@ def _filter_places(places: list, filter_type: str) -> list:
 
 @app.get("/cities")
 async def get_cities():
-    """Desteklenen şehirlerin listesini döndürür."""
+    """Tüm Türkiye şehirlerinin listesini döndürür."""
     cities = [
-        {"name": "İstanbul", "key": "istanbul"},
-        {"name": "Ankara", "key": "ankara"},
-        {"name": "İzmir", "key": "izmir"},
-        {"name": "Antalya", "key": "antalya"},
-        {"name": "Muğla", "key": "muğla"},
-        {"name": "Trabzon", "key": "trabzon"},
         {"name": "Adana", "key": "adana"},
-        {"name": "Nevşehir", "key": "nevşehir"},
-        {"name": "Gaziantep", "key": "gaziantep"},
-        {"name": "Erzurum", "key": "erzurum"},
-        {"name": "Samsun", "key": "samsun"},
+        {"name": "Adıyaman", "key": "adiyaman"},
+        {"name": "Afyonkarahisar", "key": "afyonkarahisar"},
+        {"name": "Ağrı", "key": "ağrı"},
+        {"name": "Amasya", "key": "amasya"},
+        {"name": "Ankara", "key": "ankara"},
+        {"name": "Antalya", "key": "antalya"},
+        {"name": "Artvin", "key": "artvin"},
+        {"name": "Aydın", "key": "aydın"},
+        {"name": "Balıkesir", "key": "balıkesir"},
+        {"name": "Bilecik", "key": "bilecik"},
+        {"name": "Bingöl", "key": "bingöl"},
+        {"name": "Bitlis", "key": "bitlis"},
+        {"name": "Bolu", "key": "bolu"},
+        {"name": "Burdur", "key": "burdur"},
         {"name": "Bursa", "key": "bursa"},
-        {"name": "Konya", "key": "konya"},
-        {"name": "Mardin", "key": "mardin"},
-        {"name": "Edirne", "key": "edirne"},
         {"name": "Çanakkale", "key": "çanakkale"},
+        {"name": "Çankırı", "key": "çankırı"},
+        {"name": "Çorum", "key": "çorum"},
+        {"name": "Denizli", "key": "denizli"},
+        {"name": "Diyarbakır", "key": "diyarbakır"},
+        {"name": "Edirne", "key": "edirne"},
+        {"name": "Elazığ", "key": "elazığ"},
+        {"name": "Erzincan", "key": "erzincan"},
+        {"name": "Erzurum", "key": "erzurum"},
+        {"name": "Eskişehir", "key": "eskişehir"},
+        {"name": "Gaziantep", "key": "gaziantep"},
+        {"name": "Giresun", "key": "giresun"},
+        {"name": "Gümüşhane", "key": "gümüşhane"},
+        {"name": "Hakkari", "key": "hakkari"},
+        {"name": "Hatay", "key": "hatay"},
+        {"name": "Iğdır", "key": "ığdır"},
+        {"name": "Isparta", "key": "ısparta"},
+        {"name": "İstanbul", "key": "istanbul"},
+        {"name": "İzmir", "key": "izmir"},
+        {"name": "Kahramanmaraş", "key": "kahramanmaraş"},
+        {"name": "Karabük", "key": "karabük"},
+        {"name": "Karaman", "key": "karaman"},
+        {"name": "Kars", "key": "kars"},
+        {"name": "Kastamonu", "key": "kastamonu"},
+        {"name": "Kayseri", "key": "kayseri"},
+        {"name": "Kırıkkale", "key": "kırıkkale"},
+        {"name": "Kırklareli", "key": "kırklareli"},
+        {"name": "Kırşehir", "key": "kırşehir"},
+        {"name": "Kocaeli", "key": "kocaeli"},
+        {"name": "Konya", "key": "konya"},
+        {"name": "Kütahya", "key": "kütahya"},
+        {"name": "Malatya", "key": "malatya"},
+        {"name": "Manisa", "key": "manisa"},
+        {"name": "Mardin", "key": "mardin"},
+        {"name": "Mersin", "key": "mersin"},
+        {"name": "Muğla", "key": "muğla"},
+        {"name": "Muş", "key": "muş"},
+        {"name": "Nevşehir", "key": "nevşehir"},
+        {"name": "Niğde", "key": "niğde"},
+        {"name": "Ordu", "key": "ordu"},
+        {"name": "Osmaniye", "key": "osmaniye"},
+        {"name": "Rize", "key": "rize"},
+        {"name": "Sakarya", "key": "sakarya"},
+        {"name": "Samsun", "key": "samsun"},
+        {"name": "Siirt", "key": "siirt"},
+        {"name": "Sinop", "key": "sinop"},
+        {"name": "Sivas", "key": "sivas"},
+        {"name": "Şanlıurfa", "key": "şanlıurfa"},
+        {"name": "Şırnak", "key": "şırnak"},
+        {"name": "Tekirdağ", "key": "tekirdağ"},
+        {"name": "Tokat", "key": "tokat"},
+        {"name": "Trabzon", "key": "trabzon"},
+        {"name": "Tunceli", "key": "tunceli"},
+        {"name": "Uşak", "key": "uşak"},
+        {"name": "Van", "key": "van"},
+        {"name": "Yalova", "key": "yalova"},
+        {"name": "Yozgat", "key": "yozgat"},
+        {"name": "Zonguldak", "key": "zonguldak"},
     ]
     return {"status": "success", "cities": cities}
 
