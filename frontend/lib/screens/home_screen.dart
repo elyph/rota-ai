@@ -5,6 +5,7 @@ import '../widgets/feature_item.dart';
 import '../widgets/airport_dropdown.dart';
 import '../models/airport.dart';
 import 'flight_results_screen.dart';
+import 'places_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -14,10 +15,35 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  // Uçuş değişkenleri
   Airport? _kalkisHavaalani;
   Airport? _varisHavaalani;
   DateTime? _gidisTarihi;
   DateTime? _donusTarihi;
+
+  // Gezilecek yerler değişkenleri
+  String? _secilenSehir;
+  DateTime? _geziTarihi;
+
+  // Şehir listesi
+  final List<Map<String, String>> _sehirler = [
+    {'name': 'İstanbul', 'key': 'istanbul'},
+    {'name': 'Ankara', 'key': 'ankara'},
+    {'name': 'İzmir', 'key': 'izmir'},
+    {'name': 'Antalya', 'key': 'antalya'},
+    {'name': 'Muğla', 'key': 'muğla'},
+    {'name': 'Trabzon', 'key': 'trabzon'},
+    {'name': 'Adana', 'key': 'adana'},
+    {'name': 'Nevşehir', 'key': 'nevşehir'},
+    {'name': 'Gaziantep', 'key': 'gaziantep'},
+    {'name': 'Erzurum', 'key': 'erzurum'},
+    {'name': 'Samsun', 'key': 'samsun'},
+    {'name': 'Bursa', 'key': 'bursa'},
+    {'name': 'Konya', 'key': 'konya'},
+    {'name': 'Mardin', 'key': 'mardin'},
+    {'name': 'Edirne', 'key': 'edirne'},
+    {'name': 'Çanakkale', 'key': 'çanakkale'},
+  ];
 
   Future<void> _tarihSec({required bool gidis}) async {
     final DateTime? secilen = await showDatePicker(
@@ -50,6 +76,30 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _geziTarihiSec() async {
+    final DateTime? secilen = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: AppTheme.primaryColor,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (secilen != null) {
+      setState(() {
+        _geziTarihi = secilen;
+      });
+    }
+  }
+
   void _ucuslariAra() {
     if (_kalkisHavaalani == null ||
         _varisHavaalani == null ||
@@ -71,6 +121,27 @@ class _HomeScreenState extends State<HomeScreen> {
           varis: _varisHavaalani!,
           gidisTarihi: _gidisTarihi!,
           donusTarihi: _donusTarihi,
+        ),
+      ),
+    );
+  }
+
+  void _gezilecekYerleriBul() {
+    if (_secilenSehir == null) {
+      _hataGoster("Lütfen bir şehir seçin!");
+      return;
+    }
+
+    final secilenSehir = _sehirler.firstWhere(
+      (s) => s['key'] == _secilenSehir,
+    );
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PlacesScreen(
+          cityName: secilenSehir['name']!,
+          cityKey: secilenSehir['key']!,
         ),
       ),
     );
@@ -135,7 +206,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'Akıllı Uçuş Planlayıcı',
+                                'Akıllı Gezi Planlayıcı',
                                 style: TextStyle(
                                   fontSize: 16,
                                   color: Colors.white.withValues(alpha: 0.8),
@@ -146,7 +217,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         const SizedBox(height: 24),
 
-                        // Uçuş Bilgileri Kartı
+                        // ========== UÇUŞ BİLGİLERİ KARTI ==========
                         Container(
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
@@ -164,13 +235,20 @@ class _HomeScreenState extends State<HomeScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Text(
-                                'Uçuş Bilgileri',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppTheme.darkColor,
-                                ),
+                              Row(
+                                children: [
+                                  const Icon(Icons.flight,
+                                      color: AppTheme.primaryColor, size: 22),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    'Uçuş Bilgileri',
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.darkColor,
+                                    ),
+                                  ),
+                                ],
                               ),
                               const SizedBox(height: 16),
 
@@ -253,6 +331,151 @@ class _HomeScreenState extends State<HomeScreen> {
                             ],
                           ),
                         ),
+                        const SizedBox(height: 16),
+
+                        // ========== GEZİLECEK YERLER KARTI ==========
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(24),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.1),
+                                blurRadius: 30,
+                                offset: const Offset(0, 10),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.explore,
+                                      color: AppTheme.primaryColor, size: 22),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    'Gezilecek Yerler',
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.darkColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+
+                              // Şehir seçme dropdown
+                              DropdownButtonFormField<String>(
+                                value: _secilenSehir,
+                                decoration: InputDecoration(
+                                  labelText: 'Şehir Seçin',
+                                  prefixIcon: const Icon(Icons.location_city,
+                                      color: AppTheme.primaryColor),
+                                  filled: true,
+                                  fillColor: AppTheme.lightBg,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(
+                                        color: AppTheme.primaryColor, width: 2),
+                                  ),
+                                  labelStyle:
+                                      const TextStyle(color: AppTheme.darkColor),
+                                ),
+                                hint: Text('Şehir seçiniz',
+                                    style:
+                                        TextStyle(color: Colors.grey.shade500)),
+                                isExpanded: true,
+                                items: _sehirler.map((sehir) {
+                                  return DropdownMenuItem<String>(
+                                    value: sehir['key'],
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: AppTheme.primaryColor
+                                                .withValues(alpha: 0.1),
+                                            borderRadius:
+                                                BorderRadius.circular(6),
+                                          ),
+                                          child: Text(
+                                            sehir['key']!.substring(0, 2).toUpperCase(),
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                              color: AppTheme.primaryColor,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Text(
+                                          sehir['name']!,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                                onChanged: (value) {
+                                  setState(() {
+                                    _secilenSehir = value;
+                                  });
+                                },
+                              ),
+                              const SizedBox(height: 12),
+
+                              // Tarih seçme
+                              DateField(
+                                label: 'Gezi Tarihi',
+                                date: _geziTarihi,
+                                onTap: _geziTarihiSec,
+                              ),
+                              const SizedBox(height: 20),
+
+                              SizedBox(
+                                width: double.infinity,
+                                height: 52,
+                                child: ElevatedButton(
+                                  onPressed: _gezilecekYerleriBul,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF00B894),
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                  ),
+                                  child: const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.explore, size: 20),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'Gezilecek Yerleri Bul',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                         const SizedBox(height: 20),
 
                         // Özellikler
@@ -261,7 +484,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           children: const [
                             FeatureItem(icon: Icons.flight, label: 'Uçuşlar'),
                             FeatureItem(icon: Icons.hotel, label: 'Oteller'),
-                            FeatureItem(icon: Icons.explore, label: 'Gezilecek Yerler'),
+                            FeatureItem(
+                                icon: Icons.explore, label: 'Gezilecek Yerler'),
                           ],
                         ),
                         const SizedBox(height: 10),

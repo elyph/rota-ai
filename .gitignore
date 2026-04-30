@@ -2,11 +2,19 @@
 # BACKEND (Python / FastAPI)
 # =========================
 backend/venv/
+backend/.venv/
 backend/__pycache__/
 backend/.env
 *.pyc
 *.pyo
 *.pyd
+.venv/
+venv/
+__pycache__/
+*.egg-info/
+dist/
+build/
+*.egg
 
 # =========================
 # FRONTEND (Flutter / Dart)
