@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../theme/app_theme.dart';
 import '../models/popular_place.dart';
 import '../services/popular_places_service.dart';
+import 'plan_wizard_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -87,6 +89,10 @@ class HomeScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 28),
 
+                // ========== SEYAHAT PLANLA BÖLÜMÜ ==========
+                _buildPlanSection(context),
+                const SizedBox(height: 28),
+
                 // ========== POPÜLER YERLER BAŞLIĞI ==========
                 Row(
                   children: [
@@ -147,6 +153,80 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildPlanSection(BuildContext context) {
+    final user = Supabase.instance.client.auth.currentUser;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.white.withValues(alpha: 0.15),
+            Colors.white.withValues(alpha: 0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.travel_explore, size: 40, color: Colors.white),
+          const SizedBox(height: 12),
+          const Text(
+            'Hemen Seyahatini Planla!',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            user != null
+                ? 'Uçuş seç, yerler keşfet, planını oluştur.'
+                : 'Planlamaya başlamak için giriş yapın.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.7)),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                if (user != null) {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const PlanWizardScreen()));
+                } else {
+                  // Profil sekmesine git (index 4)
+                  final navState = context.findAncestorStateOfType<State>();
+                  if (navState != null && navState is dynamic) {
+                    // Bottom nav'a erişim
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text('Planlamak için giriş yapın! Profil sekmesine gidin.'),
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    );
+                  }
+                }
+              },
+              icon: Icon(user != null ? Icons.rocket_launch : Icons.login, size: 20),
+              label: Text(
+                user != null ? 'Planlamaya Başla' : 'Giriş Yap / Kayıt Ol',
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: AppTheme.primaryColor,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

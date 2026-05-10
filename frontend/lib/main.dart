@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'theme/app_theme.dart';
 import 'screens/home_screen.dart';
 import 'screens/flights_screen.dart';
@@ -6,7 +7,14 @@ import 'screens/hotels_screen.dart';
 import 'screens/places_screen.dart';
 import 'screens/profile_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Supabase.initialize(
+    url: 'https://rphnftrzemsuhfyipuij.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJwaG5mdHJ6ZW1zdWhmeWlwdWlqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzOTgxNTEsImV4cCI6MjA5Mzk3NDE1MX0.n9f-tyNEYJkvqshAimw89GEnaRQvfl-hFiIylo3rxNE',
+  );
+
   runApp(const RotaAIApp());
 }
 
