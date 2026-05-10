@@ -67,8 +67,18 @@ class _PlacesScreenState extends State<PlacesScreen> {
       final places = await _placesService.getNearbyPlaces(
         city: _secilenSehir!,
       );
+      // 3 puan üzeri filtrele ve skor indeksine göre sırala
+      // Skor = rating * log(userRatingsTotal) - hem puanı hem popülerliği dikkate alır
+      final filteredPlaces = places
+          .where((p) => p.rating >= 3.0)
+          .toList()
+        ..sort((a, b) {
+          final scoreA = a.rating * _logScale(a.userRatingsTotal);
+          final scoreB = b.rating * _logScale(b.userRatingsTotal);
+          return scoreB.compareTo(scoreA);
+        });
       setState(() {
-        _places = places;
+        _places = filteredPlaces.take(10).toList();
         _yukleniyor = false;
       });
     } catch (e) {
@@ -77,6 +87,11 @@ class _PlacesScreenState extends State<PlacesScreen> {
         _yukleniyor = false;
       });
     }
+  }
+
+  double _logScale(int value) {
+    if (value <= 0) return 0;
+    return 1 + (value.toDouble()).clamp(1, 999999).toDouble() / 1000;
   }
 
   @override
@@ -424,17 +439,29 @@ class _PlacesScreenState extends State<PlacesScreen> {
                         border: Border.all(
                             color: ratingColor.withValues(alpha: 0.5)),
                       ),
-                      child: Row(
+                      child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.star, size: 14, color: Colors.amber),
-                          const SizedBox(width: 4),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.star, size: 14, color: Colors.amber),
+                              const SizedBox(width: 4),
+                              Text(
+                                place.rating.toStringAsFixed(1),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: ratingColor,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
                           Text(
-                            place.rating.toStringAsFixed(1),
+                            _formatPuan(place.userRatingsTotal),
                             style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: ratingColor,
-                              fontSize: 14,
+                              fontSize: 10,
+                              color: Colors.white.withValues(alpha: 0.6),
                             ),
                           ),
                         ],
@@ -726,6 +753,9 @@ class _PlacesScreenState extends State<PlacesScreen> {
   }
 
   String _formatPuan(int sayi) {
+    if (sayi >= 1000000) {
+      return '${(sayi / 1000000).toStringAsFixed(1)}M';
+    }
     if (sayi >= 1000) {
       return '${(sayi / 1000).toStringAsFixed(1)}K';
     }

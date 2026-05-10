@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../models/airport.dart';
 import '../models/flight_offer.dart';
-import '../services/duffel_service.dart';
+import '../services/flight_service.dart';
 import '../helpers/date_helper.dart';
 
 class FlightResultsScreen extends StatefulWidget {
@@ -25,12 +25,13 @@ class FlightResultsScreen extends StatefulWidget {
 
 class _FlightResultsScreenState extends State<FlightResultsScreen>
     with SingleTickerProviderStateMixin {
-  final DuffelService _duffelService = DuffelService();
+  final FlightService _flightService = FlightService();
   List<FlightOffer>? _gidisUcuslari;
   List<FlightOffer>? _donusUcuslari;
   bool _yukleniyor = true;
   String? _hata;
   late TabController _tabController;
+  String _siralama = 'zaman'; // 'zaman', 'fiyat_artan', 'fiyat_azalan'
 
   bool get _donusVar => widget.donusTarihi != null;
 
@@ -48,7 +49,7 @@ class _FlightResultsScreenState extends State<FlightResultsScreen>
     });
 
     try {
-      final gidis = await _duffelService.searchFlights(
+      final gidis = await _flightService.searchFlights(
         origin: widget.kalkis.code,
         destination: widget.varis.code,
         departureDate: widget.gidisTarihi,
@@ -56,7 +57,7 @@ class _FlightResultsScreenState extends State<FlightResultsScreen>
 
       List<FlightOffer>? donus;
       if (_donusVar) {
-        donus = await _duffelService.searchFlights(
+        donus = await _flightService.searchFlights(
           origin: widget.varis.code,
           destination: widget.kalkis.code,
           departureDate: widget.donusTarihi!,
@@ -78,7 +79,7 @@ class _FlightResultsScreenState extends State<FlightResultsScreen>
 
   @override
   void dispose() {
-    _duffelService.dispose();
+    _flightService.dispose();
     _tabController.dispose();
     super.dispose();
   }
@@ -186,15 +187,32 @@ class _FlightResultsScreenState extends State<FlightResultsScreen>
       return _buildEmptyView();
     }
 
+    // Sıralama uygula
+    final siraliUcuslar = List<FlightOffer>.from(ucuslar);
+    switch (_siralama) {
+      case 'fiyat_artan':
+        siraliUcuslar.sort((a, b) => a.priceTL.compareTo(b.priceTL));
+        break;
+      case 'fiyat_azalan':
+        siraliUcuslar.sort((a, b) => b.priceTL.compareTo(a.priceTL));
+        break;
+      case 'zaman':
+      default:
+        siraliUcuslar.sort((a, b) => a.departureTime.compareTo(b.departureTime));
+        break;
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildRouteHeader(ucuslar, isReturn),
-          const SizedBox(height: 16),
-          ...List.generate(ucuslar.length, (index) {
-            return _buildFlightCard(ucuslar[index], ucuslar, index);
+          const SizedBox(height: 12),
+          _buildSortOptions(),
+          const SizedBox(height: 12),
+          ...List.generate(siraliUcuslar.length, (index) {
+            return _buildFlightCard(siraliUcuslar[index], ucuslar, index);
           }),
           const SizedBox(height: 16),
           // Uyarı metni
@@ -214,7 +232,7 @@ class _FlightResultsScreenState extends State<FlightResultsScreen>
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Fiyatlar global sağlayıcı verisidir, havayolu sitesinde farklılık gösterebilir.',
+                    'Fiyatlar SerpAPI üzerinden Google Flights verilerine dayanmaktadır.',
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.5),
                       fontSize: 11,
@@ -226,6 +244,56 @@ class _FlightResultsScreenState extends State<FlightResultsScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSortOptions() {
+    return Row(
+      children: [
+        _buildSortChip('Saat', 'zaman', Icons.access_time),
+        const SizedBox(width: 8),
+        _buildSortChip('Ucuz', 'fiyat_artan', Icons.arrow_upward),
+        const SizedBox(width: 8),
+        _buildSortChip('Pahalı', 'fiyat_azalan', Icons.arrow_downward),
+      ],
+    );
+  }
+
+  Widget _buildSortChip(String label, String value, IconData icon) {
+    final selected = _siralama == value;
+    return GestureDetector(
+      onTap: () {
+        setState(() => _siralama = value);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected
+              ? Colors.white.withValues(alpha: 0.25)
+              : Colors.white.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected
+                ? Colors.white.withValues(alpha: 0.6)
+                : Colors.white.withValues(alpha: 0.2),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: Colors.white.withValues(alpha: selected ? 1.0 : 0.6)),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                color: Colors.white.withValues(alpha: selected ? 1.0 : 0.6),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -249,8 +317,8 @@ class _FlightResultsScreenState extends State<FlightResultsScreen>
             ),
             const SizedBox(height: 8),
             Text(
-              _hata!.contains('Duffel API')
-                  ? 'API bağlantı hatası. Token\'ınızı kontrol edin.'
+              _hata!.contains('API')
+                  ? 'API bağlantı hatası. Backend sunucusunu kontrol edin.'
                   : 'Sunucuya bağlanılamadı. İnternet bağlantınızı kontrol edin.',
               style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
               textAlign: TextAlign.center,
@@ -279,7 +347,7 @@ class _FlightResultsScreenState extends State<FlightResultsScreen>
           const Icon(Icons.flight_takeoff, size: 64, color: Colors.white70),
           const SizedBox(height: 16),
           const Text(
-            'Bu rotada Pegasus uçuşu bulunamadı',
+            'Bu rotada uçuş bulunamadı',
             style: TextStyle(
               color: Colors.white,
               fontSize: 18,
@@ -355,11 +423,15 @@ class _FlightResultsScreenState extends State<FlightResultsScreen>
   }
 
   Widget _buildFlightCard(FlightOffer ucus, List<FlightOffer> liste, int index) {
-    final fiyatOran = (ucus.priceUSD - liste.first.priceUSD) /
-        (liste.last.priceUSD - liste.first.priceUSD).clamp(1, double.infinity);
+    // Fiyat rengini tüm listedeki min/max fiyata göre hesapla
+    final minPrice = liste.map((f) => f.priceTL).reduce((a, b) => a < b ? a : b);
+    final maxPrice = liste.map((f) => f.priceTL).reduce((a, b) => a > b ? a : b);
+    final fiyatOran = maxPrice > minPrice
+        ? (ucus.priceTL - minPrice) / (maxPrice - minPrice)
+        : 0.0;
     final renk = Color.lerp(
       Colors.green,
-      Colors.orange,
+      Colors.red,
       fiyatOran.clamp(0.0, 1.0),
     )!;
 

@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import httpx
 import os
 from dotenv import load_dotenv
+import asyncio
 
 load_dotenv()
 
@@ -18,6 +19,7 @@ app.add_middleware(
 )
 
 GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY", "")
+SERPAPI_KEY = os.getenv("SERPAPI_KEY", "")
 
 # Şehirlerin koordinatları (enlem, boylam)
 CITY_COORDINATES = {
@@ -70,6 +72,16 @@ class PlaceRequest(BaseModel):
     radius: int = 5000  # metre cinsinden, varsayılan 5km
     max_results: int = 15
 
+from typing import Optional
+
+class FlightSearchRequest(BaseModel):
+    departure_city: str
+    arrival_city: str
+    departure_date: str  # YYYY-MM-DD formatında
+    return_date: Optional[str] = None  # Opsiyonel, gidiş-dönüş için
+    passengers: int = 1
+    currency: str = "TRY"  # Türk Lirası
+
 @app.post("/generate-plan")
 async def create_plan(request: TravelRequest):
     return {
@@ -105,6 +117,48 @@ async def get_nearby_places(request: PlaceRequest):
         return {"status": "success", "places": places, "source": "google_places"}
     except Exception as e:
         return {"status": "error", "message": str(e), "places": []}
+
+@app.post("/search-flights")
+async def search_flights(request: FlightSearchRequest):
+    """SerpAPI Google Flights kullanarak uçuş arama."""
+    if not SERPAPI_KEY:
+        return {"status": "error", "message": "SerpAPI anahtarı yapılandırılmamış."}
+    
+    try:
+        flights = await _search_flights_serpapi(
+            departure_city=request.departure_city,
+            arrival_city=request.arrival_city,
+            departure_date=request.departure_date,
+            return_date=request.return_date,
+            passengers=request.passengers,
+            currency=request.currency
+        )
+        return {"status": "success", "flights": flights}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.get("/cities")
+async def get_cities():
+    """Desteklenen şehirlerin listesini döndürür."""
+    cities = [
+        {"name": "İstanbul", "key": "istanbul"},
+        {"name": "Ankara", "key": "ankara"},
+        {"name": "İzmir", "key": "izmir"},
+        {"name": "Antalya", "key": "antalya"},
+        {"name": "Muğla", "key": "muğla"},
+        {"name": "Trabzon", "key": "trabzon"},
+        {"name": "Adana", "key": "adana"},
+        {"name": "Nevşehir", "key": "nevşehir"},
+        {"name": "Gaziantep", "key": "gaziantep"},
+        {"name": "Erzurum", "key": "erzurum"},
+        {"name": "Samsun", "key": "samsun"},
+        {"name": "Bursa", "key": "bursa"},
+        {"name": "Konya", "key": "konya"},
+        {"name": "Mardin", "key": "mardin"},
+        {"name": "Edirne", "key": "edirne"},
+        {"name": "Çanakkale", "key": "çanakkale"},
+    ]
+    return {"status": "success", "cities": cities}
 
 async def _fetch_places_from_google(lat: float, lng: float, radius: int, max_results: int):
     """Google Places API (Nearby Search) ile turistik yerleri çeker."""
@@ -155,6 +209,108 @@ async def _fetch_places_from_google(lat: float, lng: float, radius: int, max_res
     
     return places
 
+async def _search_flights_serpapi(
+    departure_city: str,
+    arrival_city: str,
+    departure_date: str,
+    return_date: str = None,
+    passengers: int = 1,
+    currency: str = "TRY"
+):
+    """SerpAPI Google Flights ile uçuş arama."""
+    
+    url = "https://serpapi.com/search.json"
+    
+    params = {
+        "engine": "google_flights",
+        "departure_id": departure_city,
+        "arrival_id": arrival_city,
+        "outbound_date": departure_date,
+        "currency": currency,
+        "hl": "tr",
+        "gl": "tr",
+        "type": "2",  # One way
+        "adults": passengers,
+        "api_key": SERPAPI_KEY,
+    }
+    
+    if return_date:
+        params["type"] = "1"  # Round trip
+        params["return_date"] = return_date
+    
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(url, params=params)
+            response.raise_for_status()
+            
+            data = response.json()
+            
+            if "error" in data:
+                print(f"SerpAPI hatası: {data['error']}")
+                return []
+            
+            # best_flights ve other_flights birleştir
+            all_flights = []
+            all_flights.extend(data.get("best_flights", []))
+            all_flights.extend(data.get("other_flights", []))
+            
+            # Uçuşları formatla
+            flights = []
+            for flight_group in all_flights[:15]:
+                flight_segments = flight_group.get("flights", [])
+                if not flight_segments:
+                    continue
+                
+                first_segment = flight_segments[0]
+                last_segment = flight_segments[-1]
+                
+                # Havayolu bilgisi
+                airline = first_segment.get("airline", "Bilinmeyen")
+                flight_number = first_segment.get("flight_number", "")
+                
+                # Kalkış/varış saatleri
+                dep_time = first_segment.get("departure_airport", {}).get("time", "")
+                arr_time = last_segment.get("arrival_airport", {}).get("time", "")
+                
+                # Sadece saat kısmını al
+                dep_time_short = dep_time.split(" ")[-1] if " " in dep_time else dep_time
+                arr_time_short = arr_time.split(" ")[-1] if " " in arr_time else arr_time
+                
+                # Süre
+                total_duration = flight_group.get("total_duration", 0)
+                hours = total_duration // 60
+                mins = total_duration % 60
+                duration_str = f"{hours}s {mins}dk"
+                
+                # Aktarma sayısı
+                stops = len(flight_group.get("layovers", []))
+                
+                # Fiyat
+                price = flight_group.get("price", 0)
+                
+                flights.append({
+                    "id": flight_number,
+                    "airline": airline,
+                    "departure_time": dep_time_short,
+                    "arrival_time": arr_time_short,
+                    "duration": duration_str,
+                    "stops": stops,
+                    "price": price,
+                    "currency": currency,
+                    "departure_city": departure_city,
+                    "arrival_city": arrival_city,
+                    "departure_date": departure_date,
+                    "return_date": return_date,
+                    "flight_number": flight_number,
+                    "airline_logo": first_segment.get("airline_logo", ""),
+                })
+            
+            return flights
+            
+    except Exception as e:
+        print(f"SerpAPI hatası: {str(e)}")
+        return []
+
 def _get_mock_places(city: str) -> list:
     """API key yoksa gösterilecek örnek veriler."""
     mock_data = {
@@ -200,29 +356,6 @@ def _get_mock_places(city: str) -> list:
     
     return mock_data[city.lower()]
 
-@app.get("/cities")
-async def get_cities():
-    """Desteklenen şehirlerin listesini döndürür."""
-    cities = [
-        {"name": "İstanbul", "key": "istanbul"},
-        {"name": "Ankara", "key": "ankara"},
-        {"name": "İzmir", "key": "izmir"},
-        {"name": "Antalya", "key": "antalya"},
-        {"name": "Muğla", "key": "muğla"},
-        {"name": "Trabzon", "key": "trabzon"},
-        {"name": "Adana", "key": "adana"},
-        {"name": "Nevşehir", "key": "nevşehir"},
-        {"name": "Gaziantep", "key": "gaziantep"},
-        {"name": "Erzurum", "key": "erzurum"},
-        {"name": "Samsun", "key": "samsun"},
-        {"name": "Bursa", "key": "bursa"},
-        {"name": "Konya", "key": "konya"},
-        {"name": "Mardin", "key": "mardin"},
-        {"name": "Edirne", "key": "edirne"},
-        {"name": "Çanakkale", "key": "çanakkale"},
-    ]
-    return {"status": "success", "cities": cities}
-
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8001)
