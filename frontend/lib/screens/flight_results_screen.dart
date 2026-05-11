@@ -90,14 +90,14 @@ class _FlightResultsScreenState extends State<FlightResultsScreen>
       appBar: AppBar(
         title: Text('${widget.kalkis.code} → ${widget.varis.code}'),
         centerTitle: true,
-        backgroundColor: AppTheme.primaryColor,
+        backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
         bottom: _donusVar
             ? PreferredSize(
                 preferredSize: const Size.fromHeight(48),
                 child: Container(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.9),
+                  color: AppTheme.surfaceColor,
                   child: TabBar(
                     controller: _tabController,
                     labelColor: Colors.white,

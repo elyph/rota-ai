@@ -93,7 +93,7 @@ class _FlightsScreenState extends State<FlightsScreen> {
       appBar: AppBar(
         title: const Text('Uçuş Ara'),
         centerTitle: true,
-        backgroundColor: AppTheme.primaryColor,
+        backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
@@ -105,17 +105,7 @@ class _FlightsScreenState extends State<FlightsScreen> {
           padding: const EdgeInsets.all(20),
           child: Container(
             padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
-                  blurRadius: 30,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
+            decoration: AppTheme.elevatedGlassCard(),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -128,7 +118,7 @@ class _FlightsScreenState extends State<FlightsScreen> {
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
-                        color: AppTheme.darkColor,
+                        color: Colors.white,
                       ),
                     ),
                   ],
@@ -177,26 +167,33 @@ class _FlightsScreenState extends State<FlightsScreen> {
                 SizedBox(
                   width: double.infinity,
                   height: 52,
-                  child: ElevatedButton(
-                    onPressed: _ucuslariAra,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryColor,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: AppTheme.primaryGradient,
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.search, size: 20),
-                        SizedBox(width: 8),
-                        Text(
-                          'Uçuşları Ara',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    child: ElevatedButton(
+                      onPressed: _ucuslariAra,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        foregroundColor: Colors.white,
+                        shadowColor: Colors.transparent,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
                         ),
-                      ],
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.search_rounded, size: 20),
+                          SizedBox(width: 8),
+                          Text(
+                            'Uçuşları Ara',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),

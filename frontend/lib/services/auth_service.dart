@@ -44,7 +44,7 @@ class AuthService {
   Future<bool> signInWithGoogle() async {
     final response = await _supabase.auth.signInWithOAuth(
       OAuthProvider.google,
-      redirectTo: 'http://localhost:3000/auth/callback',
+      redirectTo: 'http://localhost:${Uri.base.port}',
     );
     return response;
   }

@@ -20,6 +20,7 @@ app.add_middleware(
 
 GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY", "")
 SERPAPI_KEY = os.getenv("SERPAPI_KEY", "")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
 # Şehirlerin koordinatları (enlem, boylam)
 CITY_COORDINATES = {
@@ -355,6 +356,98 @@ def _get_mock_places(city: str) -> list:
         ]
     
     return mock_data[city.lower()]
+
+class ChatRequest(BaseModel):
+    message: str
+    history: list = []  # Önceki mesajlar [{role, content}]
+    user_plans: list = []  # Kullanıcının mevcut planları (context için)
+
+@app.post("/chat")
+async def chat(request: ChatRequest):
+    """Gemini AI ile seyahat asistanı chatbot."""
+    if not GEMINI_API_KEY:
+        return {"status": "error", "message": "Gemini API anahtarı yapılandırılmamış."}
+
+    try:
+        response = await _chat_with_gemini(
+            message=request.message,
+            history=request.history,
+            user_plans=request.user_plans,
+        )
+        return {"status": "success", "response": response}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+async def _chat_with_gemini(message: str, history: list, user_plans: list) -> str:
+    """Gemini API ile chat."""
+
+    # System prompt
+    system_prompt = """Sen "Rota AI" adlı yapay zeka destekli seyahat planlama uygulamasının asistanısın.
+Türkiye'deki seyahat planlaması konusunda uzmanlaşmış bir yapay zekasın.
+
+Görevlerin:
+- Kullanıcılara şehir ve destinasyon önerisi yapmak (bütçe, mevsim, ilgi alanına göre)
+- Gün gün seyahat programı oluşturmak
+- Restoran, kafe, aktivite önerileri vermek
+- Ulaşım tavsiyeleri (havaalanı transferi, şehir içi ulaşım)
+- Yerel kültür, yemek ve gezi ipuçları
+- Mevcut seyahat planlarını analiz edip iyileştirme önerileri sunmak
+
+Kuralların:
+- Her zaman Türkçe yanıt ver
+- Kısa ve öz cevaplar ver, gereksiz uzatma
+- Emoji kullan ama abartma
+- Fiyat bilgisi verirken TL cinsinden ver
+- Güvenilir ve güncel bilgi ver
+- Kullanıcının mevcut planları varsa onları dikkate al"""
+
+    # Kullanıcının planlarını context'e ekle
+    context = ""
+    if user_plans:
+        context = "\n\nKullanıcının mevcut seyahat planları:\n"
+        for plan in user_plans[:3]:  # Max 3 plan
+            context += f"- {plan.get('title', '')}: {plan.get('departure_city', '')} → {plan.get('arrival_city', '')}, Tarih: {plan.get('departure_date', '')}\n"
+
+    # Gemini API isteği
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key={GEMINI_API_KEY}"
+
+    # Mesaj geçmişini oluştur
+    contents = []
+
+    # Geçmiş mesajları ekle
+    for msg in history[-10:]:  # Son 10 mesaj
+        role = "user" if msg.get("role") == "user" else "model"
+        contents.append({"role": role, "parts": [{"text": msg.get("content", "")}]})
+
+    # Yeni mesajı ekle
+    contents.append({"role": "user", "parts": [{"text": message}]})
+
+    body = {
+        "contents": contents,
+        "systemInstruction": {
+            "parts": [{"text": system_prompt + context}]
+        },
+        "generationConfig": {
+            "temperature": 0.7,
+            "maxOutputTokens": 1024,
+        }
+    }
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        response = await client.post(url, json=body)
+        response.raise_for_status()
+        data = response.json()
+
+    # Yanıtı çıkar
+    candidates = data.get("candidates", [])
+    if not candidates:
+        return "Üzgünüm, şu an yanıt oluşturamadım. Tekrar dener misin?"
+
+    parts = candidates[0].get("content", {}).get("parts", [])
+    if not parts:
+        return "Üzgünüm, bir sorun oluştu."
+
+    return parts[0].get("text", "")
 
 if __name__ == "__main__":
     import uvicorn

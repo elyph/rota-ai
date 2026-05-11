@@ -36,7 +36,7 @@ class HomeScreen extends StatelessWidget {
         ),
         child: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -45,43 +45,41 @@ class HomeScreen extends StatelessWidget {
                   child: Column(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(18),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(20),
+                          gradient: AppTheme.primaryGradient,
+                          borderRadius: BorderRadius.circular(22),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                              blurRadius: 20,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
                         ),
                         child: const Icon(
                           Icons.explore_rounded,
-                          size: 48,
+                          size: 42,
                           color: Colors.white,
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 18),
                       const Text(
                         'Rota AI',
                         style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 30,
+                          fontWeight: FontWeight.w800,
                           color: Colors.white,
-                          letterSpacing: 2,
+                          letterSpacing: 1.5,
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       Text(
-                        'Seyahatinizi Planlayın',
+                        'Akıllı Seyahat Planlayıcınız',
                         style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.white.withValues(alpha: 0.85),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Türkiye\'nin en güzel yerlerini keşfedin,\nsize özel rotanızı oluşturun',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 13,
+                          fontSize: 14,
                           color: Colors.white.withValues(alpha: 0.6),
+                          fontWeight: FontWeight.w400,
                         ),
                       ),
                     ],
@@ -99,17 +97,17 @@ class HomeScreen extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
+                        color: AppTheme.accentColor.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(Icons.trending_up, color: Colors.white, size: 20),
+                      child: const Icon(Icons.trending_up_rounded, color: AppTheme.accentColor, size: 20),
                     ),
                     const SizedBox(width: 10),
                     const Text(
-                      'Türkiye\'nin Popüler Yerleri',
+                      'Popüler Yerler',
                       style: TextStyle(
                         fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w700,
                         color: Colors.white,
                       ),
                     ),
@@ -122,33 +120,6 @@ class HomeScreen extends StatelessWidget {
                   final place = popularPlaces[index];
                   return _buildPlaceCard(context, place, index);
                 }),
-
-                const SizedBox(height: 16),
-
-                // ========== ALT BİLGİ ==========
-                Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.map, size: 16, color: Colors.white.withValues(alpha: 0.5)),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Her yere tıklayarak Google Haritalar\'da görüntüleyin',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.white.withValues(alpha: 0.5),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
               ],
             ),
           ),
@@ -162,26 +133,22 @@ class HomeScreen extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Colors.white.withValues(alpha: 0.15),
-            Colors.white.withValues(alpha: 0.05),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-      ),
+      padding: const EdgeInsets.all(24),
+      decoration: AppTheme.elevatedGlassCard(),
       child: Column(
         children: [
-          const Icon(Icons.travel_explore, size: 40, color: Colors.white),
-          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              gradient: AppTheme.primaryGradient,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(Icons.travel_explore_rounded, size: 32, color: Colors.white),
+          ),
+          const SizedBox(height: 16),
           const Text(
             'Hemen Seyahatini Planla!',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+            style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700, color: Colors.white),
           ),
           const SizedBox(height: 8),
           Text(
@@ -189,21 +156,23 @@ class HomeScreen extends StatelessWidget {
                 ? 'Uçuş seç, yerler keşfet, planını oluştur.'
                 : 'Planlamaya başlamak için giriş yapın.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.7)),
+            style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.6)),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           SizedBox(
             width: double.infinity,
-            height: 48,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                if (user != null) {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const PlanWizardScreen()));
-                } else {
-                  // Profil sekmesine git (index 4)
-                  final navState = context.findAncestorStateOfType<State>();
-                  if (navState != null && navState is dynamic) {
-                    // Bottom nav'a erişim
+            height: 50,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: user != null ? AppTheme.primaryGradient : null,
+                color: user != null ? null : Colors.white.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  if (user != null) {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const PlanWizardScreen()));
+                  } else {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: const Text('Planlamak için giriş yapın! Profil sekmesine gidin.'),
@@ -212,17 +181,18 @@ class HomeScreen extends StatelessWidget {
                       ),
                     );
                   }
-                }
-              },
-              icon: Icon(user != null ? Icons.rocket_launch : Icons.login, size: 20),
-              label: Text(
-                user != null ? 'Planlamaya Başla' : 'Giriş Yap / Kayıt Ol',
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: AppTheme.primaryColor,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                },
+                icon: Icon(user != null ? Icons.rocket_launch_rounded : Icons.login_rounded, size: 20),
+                label: Text(
+                  user != null ? 'Planlamaya Başla' : 'Giriş Yap / Kayıt Ol',
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  foregroundColor: Colors.white,
+                  shadowColor: Colors.transparent,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
               ),
             ),
           ),
@@ -233,125 +203,80 @@ class HomeScreen extends StatelessWidget {
 
   Widget _buildPlaceCard(BuildContext context, PopularPlace place, int index) {
     final ratingColor = place.rating >= 4.7
-        ? Colors.green
+        ? const Color(0xFF10B981)
         : place.rating >= 4.5
-            ? Colors.lightGreen
-            : Colors.orange;
+            ? const Color(0xFF34D399)
+            : const Color(0xFFFBBF24);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Material(
-        color: Colors.white.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: () => _haritadaAc(context, place),
-          child: Padding(
+          child: Container(
             padding: const EdgeInsets.all(14),
+            decoration: AppTheme.glassCard(opacity: 0.06, borderOpacity: 0.08, radius: 16),
             child: Row(
               children: [
-                // Sol taraftaki numara/görsel
+                // Numara
                 Container(
-                  width: 60,
-                  height: 60,
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                    gradient: AppTheme.primaryGradient,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Center(
                     child: Text(
                       '${index + 1}',
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white),
                     ),
                   ),
                 ),
                 const SizedBox(width: 14),
 
-                // Orta kısım: isim, şehir, açıklama
+                // İçerik
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Text(
+                        place.name,
+                        style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white, fontSize: 14),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
                       Row(
                         children: [
-                          Expanded(
-                            child: Text(
-                              place.name,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                                fontSize: 15,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
+                          Icon(Icons.location_on_rounded, size: 12, color: Colors.white.withValues(alpha: 0.4)),
+                          const SizedBox(width: 3),
+                          Text(place.city, style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5))),
+                          const SizedBox(width: 10),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.1),
+                              color: ratingColor.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(6),
                             ),
-                            child: Text(
-                              place.category,
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.white.withValues(alpha: 0.7),
-                              ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.star_rounded, size: 11, color: ratingColor),
+                                const SizedBox(width: 2),
+                                Text(place.rating.toString(), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: ratingColor)),
+                              ],
                             ),
                           ),
                         ],
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(Icons.location_on, size: 12, color: Colors.white.withValues(alpha: 0.5)),
-                          const SizedBox(width: 4),
-                          Text(
-                            place.city,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.white.withValues(alpha: 0.6),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Icon(Icons.star, size: 12, color: Colors.amber),
-                          const SizedBox(width: 4),
-                          Text(
-                            place.rating.toString(),
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: ratingColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        place.description,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.white.withValues(alpha: 0.5),
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
                 ),
 
-                // Sağ taraftaki ok
-                Icon(
-                  Icons.arrow_forward_ios,
-                  size: 16,
-                  color: Colors.white.withValues(alpha: 0.4),
-                ),
+                Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.white.withValues(alpha: 0.3)),
               ],
             ),
           ),

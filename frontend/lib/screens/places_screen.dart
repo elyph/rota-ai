@@ -107,7 +107,7 @@ class _PlacesScreenState extends State<PlacesScreen> {
       appBar: AppBar(
         title: Text(baslik),
         centerTitle: true,
-        backgroundColor: AppTheme.primaryColor,
+        backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
       ),

@@ -6,6 +6,7 @@ import 'screens/flights_screen.dart';
 import 'screens/hotels_screen.dart';
 import 'screens/places_screen.dart';
 import 'screens/profile_screen.dart';
+import 'screens/chat_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -55,15 +56,19 @@ class _MainNavigationState extends State<MainNavigation> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: _screens[_selectedIndex],
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatScreen()));
+        },
+        backgroundColor: AppTheme.primaryColor,
+        child: const Icon(Icons.auto_awesome, color: Colors.white),
+      ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 20,
-              offset: const Offset(0, -5),
-            ),
-          ],
+          color: AppTheme.darkColor,
+          border: Border(
+            top: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+          ),
         ),
         child: BottomNavigationBar(
           currentIndex: _selectedIndex,
@@ -73,36 +78,36 @@ class _MainNavigationState extends State<MainNavigation> {
             });
           },
           type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.white,
+          backgroundColor: Colors.transparent,
           selectedItemColor: AppTheme.primaryColor,
-          unselectedItemColor: Colors.grey,
-          selectedFontSize: 12,
-          unselectedFontSize: 12,
+          unselectedItemColor: Colors.white.withValues(alpha: 0.4),
+          selectedFontSize: 11,
+          unselectedFontSize: 11,
           elevation: 0,
           items: const [
             BottomNavigationBarItem(
               icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home),
+              activeIcon: Icon(Icons.home_rounded),
               label: 'Ana Sayfa',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.flight_outlined),
-              activeIcon: Icon(Icons.flight),
+              activeIcon: Icon(Icons.flight_rounded),
               label: 'Uçuşlar',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.hotel_outlined),
-              activeIcon: Icon(Icons.hotel),
+              activeIcon: Icon(Icons.hotel_rounded),
               label: 'Oteller',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.explore_outlined),
-              activeIcon: Icon(Icons.explore),
-              label: 'Gezilecek Yerler',
+              activeIcon: Icon(Icons.explore_rounded),
+              label: 'Keşfet',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline),
-              activeIcon: Icon(Icons.person),
+              icon: Icon(Icons.person_outline_rounded),
+              activeIcon: Icon(Icons.person_rounded),
               label: 'Profil',
             ),
           ],

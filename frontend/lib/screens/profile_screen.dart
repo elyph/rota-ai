@@ -48,7 +48,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         title: const Text('Profil'),
         centerTitle: true,
-        backgroundColor: AppTheme.primaryColor,
+        backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
@@ -287,8 +287,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // === PROFİL EKRANI (Giriş yapılmış) ===
   Widget _buildProfileView(User user) {
-    final fullName = user.userMetadata?['full_name'] ??
-        '${user.userMetadata?['first_name'] ?? ''} ${user.userMetadata?['last_name'] ?? ''}'.trim();
+    // Google OAuth: 'full_name' veya 'name' gönderir
+    // Email/şifre kayıt: 'first_name' + 'last_name' gönderir
+    final meta = user.userMetadata ?? {};
+    final fullName = meta['full_name'] ?? meta['name'] ??
+        '${meta['first_name'] ?? ''} ${meta['last_name'] ?? ''}'.trim();
     final email = user.email ?? '';
     final initials = fullName.isNotEmpty
         ? fullName.split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join().toUpperCase()
