@@ -19,32 +19,34 @@ class DateField extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        constraints: const BoxConstraints(minHeight: 56),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: AppTheme.lightBg,
+          color: Colors.white.withValues(alpha: 0.10),
           borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
-                color: AppTheme.darkColor,
+                color: Colors.white.withValues(alpha: 0.75),
                 fontWeight: FontWeight.w500,
               ),
             ),
             const SizedBox(height: 4),
             Row(
               children: [
-                const Icon(Icons.calendar_today, size: 18, color: AppTheme.primaryColor),
+                Icon(Icons.calendar_today, size: 18, color: Colors.white.withValues(alpha: 0.75)),
                 const SizedBox(width: 8),
                 Text(
                   DateHelper.formatDate(date),
                   style: TextStyle(
                     fontSize: 14,
-                    color: date != null ? AppTheme.darkColor : Colors.grey,
+                    color: date != null ? Colors.white : Colors.white.withValues(alpha: 0.5),
                     fontWeight: date != null ? FontWeight.w600 : FontWeight.normal,
                   ),
                 ),

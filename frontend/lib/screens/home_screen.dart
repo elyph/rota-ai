@@ -153,7 +153,7 @@ class HomeScreen extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             user != null
-                ? 'Uçuş seç, yerler keşfet, planını oluştur.'
+                ? 'Uçuşunu seç, otelini belirle, gezilecek yerleri ekle.'
                 : 'Planlamaya başlamak için giriş yapın.',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.6)),
