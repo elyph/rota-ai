@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 import httpx
 import os
+from datetime import date, timedelta
 from dotenv import load_dotenv
 import asyncio
 
@@ -21,6 +22,8 @@ app.add_middleware(
 GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY", "")
 SERPAPI_KEY = os.getenv("SERPAPI_KEY", "")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+RAPIDAPI_HOTEL_KEY = os.getenv("RAPIDAPI_HOTEL_KEY", "")
+RAPIDAPI_HOTEL_HOST = os.getenv("RAPIDAPI_HOTEL_HOST", "")
 
 # Şehirlerin koordinatları (enlem, boylam)
 CITY_COORDINATES = {
@@ -83,6 +86,15 @@ class FlightSearchRequest(BaseModel):
     passengers: int = 1
     currency: str = "TRY"  # Türk Lirası
 
+
+class HotelSearchRequest(BaseModel):
+    city: str
+    check_in: str  # YYYY-MM-DD
+    check_out: str  # YYYY-MM-DD
+    guests: int = 1
+    min_rating: float = 0.0
+    max_price: Optional[float] = None
+
 @app.post("/generate-plan")
 async def create_plan(request: TravelRequest):
     return {
@@ -137,6 +149,157 @@ async def search_flights(request: FlightSearchRequest):
         return {"status": "success", "flights": flights}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+
+@app.post("/search-hotels")
+async def search_hotels(request: HotelSearchRequest):
+    """SerpAPI ile otel arama (backend proxy)."""
+    if not SERPAPI_KEY:
+        return {"status": "error", "message": "SerpAPI key yapılandırılmamış."}
+
+    try:
+        hotels = await _fetch_hotels_serpapi(
+            city=request.city,
+            check_in=request.check_in,
+            check_out=request.check_out,
+            guests=request.guests,
+            min_rating=request.min_rating,
+            max_price=request.max_price,
+        )
+        return {"status": "success", "hotels": hotels}
+    except Exception as e:
+        return {"status": "error", "message": str(e), "hotels": []}
+
+
+async def _fetch_hotels_serpapi(
+    city: str,
+    check_in: str,
+    check_out: str,
+    guests: int = 1,
+    min_rating: float = 0.0,
+    max_price: Optional[float] = None,
+    max_results: int = 15,
+):
+    """SerpAPI ile otel arama (Google Hotels)."""
+    url = "https://serpapi.com/search.json"
+    
+    today = date.today()
+    try:
+        parsed_check_in = date.fromisoformat(check_in)
+    except Exception:
+        parsed_check_in = today + timedelta(days=1)
+        check_in = parsed_check_in.isoformat()
+    
+    if parsed_check_in <= today:
+        parsed_check_in = today + timedelta(days=1)
+        check_in = parsed_check_in.isoformat()
+    
+    try:
+        parsed_check_out = date.fromisoformat(check_out)
+    except Exception:
+        parsed_check_out = parsed_check_in + timedelta(days=1)
+        check_out = parsed_check_out.isoformat()
+    
+    if parsed_check_out <= parsed_check_in:
+        parsed_check_out = parsed_check_in + timedelta(days=1)
+        check_out = parsed_check_out.isoformat()
+    
+    params = {
+        "engine": "google_hotels",
+        "q": city,
+        "check_in_date": check_in,
+        "check_out_date": check_out,
+        "adults": guests,
+        "currency": "TRY",
+        "hl": "tr",
+        "gl": "tr",
+        "api_key": SERPAPI_KEY,
+    }
+    
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(url, params=params)
+            response.raise_for_status()
+            data = response.json()
+        
+        if "error" in data:
+            raise Exception(f"SerpAPI hatası: {data['error']}")
+        
+        # SerpAPI properties listesinden otelleri çıkar
+        hotels_data = data.get("properties", [])
+        if not hotels_data:
+            return []
+        
+        hotels = []
+        for item in hotels_data[:max_results]:
+            if not isinstance(item, dict):
+                continue
+            
+            name = item.get("name", "")
+            if not name:
+                continue
+            
+            # Adres - SerpAPI'de doğrudan address alanı yok, description veya nearby_places kullanabiliriz
+            address = item.get("description", "")
+            
+            # Fiyat (günlük) - rate_per_night içindeki extracted_lowest
+            price_val = None
+            rate_per_night = item.get("rate_per_night", {})
+            if isinstance(rate_per_night, dict):
+                price_val = rate_per_night.get("extracted_lowest")
+            
+            # Rating - overall_rating (int) olarak döner
+            rating_val = float(item.get("overall_rating", 0))
+            
+            # Review count - reviews alanı
+            review_count = item.get("reviews", 0)
+            if isinstance(review_count, str):
+                try:
+                    review_count = int("".join(ch for ch in review_count if ch.isdigit()))
+                except Exception:
+                    review_count = 0
+            
+            # Filtreleme
+            if min_rating and rating_val < min_rating:
+                continue
+            if max_price is not None and price_val is not None and price_val > max_price:
+                continue
+            
+            # Resim - images listesinden ilkini al
+            photo = ""
+            images = item.get("images", [])
+            if images and isinstance(images[0], dict):
+                photo = images[0].get("original_image", "")
+            
+            # Konum - gps_coordinates
+            lat = 0.0
+            lng = 0.0
+            gps = item.get("gps_coordinates", {})
+            if isinstance(gps, dict):
+                lat = gps.get("latitude", 0.0)
+                lng = gps.get("longitude", 0.0)
+            
+            hotels.append({
+                "id": item.get("property_token", ""),
+                "name": name,
+                "address": address,
+                "rating": rating_val,
+                "reviewCount": review_count,
+                "pricePerNight": price_val,
+                "imageUrl": photo,
+                "latitude": lat,
+                "longitude": lng,
+                "amenities": item.get("amenities", []),
+                "stars": int(rating_val),
+            })
+        
+        return hotels
+    except Exception as e:
+        print(f"Hotel search error: {str(e)}")
+        raise
+
+
+
 
 @app.get("/cities")
 async def get_cities():

@@ -7,6 +7,8 @@ import '../services/flight_service.dart';
 import '../services/places_service.dart';
 import '../services/travel_plan_service.dart';
 import '../widgets/airport_dropdown.dart';
+import '../services/hotel_service.dart';
+import '../models/hotel.dart';
 
 class PlanWizardScreen extends StatefulWidget {
   const PlanWizardScreen({super.key});
@@ -32,9 +34,15 @@ class _PlanWizardScreenState extends State<PlanWizardScreen> {
   List<TouristPlace> _secilenYerler = [];
   bool _yerlerYukleniyor = false;
 
+  List<Hotel>? _hoteller;
+  Hotel? _secilenOtel;
+  bool _hotellerYukleniyor = false;
+  final TextEditingController _otelSehirController = TextEditingController();
+
   final FlightService _flightService = FlightService();
   final PlacesService _placesService = PlacesService();
   final TravelPlanService _planService = TravelPlanService();
+  final HotelService _hotelService = HotelService();
 
   int get _totalSteps => _donusTarihi != null ? 6 : 5;
 
@@ -59,8 +67,8 @@ class _PlanWizardScreenState extends State<PlanWizardScreen> {
     switch (_currentStep) {
       case 0: return 'Uçuş Bilgileri';
       case 1: return 'Gidiş Uçuşu Seç';
-      case 2: return _donusTarihi != null ? 'Dönüş Uçuşu Seç' : 'Otel (Yakında)';
-      case 3: return _donusTarihi != null ? 'Otel (Yakında)' : 'Gezilecek Yerler';
+      case 2: return _donusTarihi != null ? 'Dönüş Uçuşu Seç' : 'Otel Seç';
+      case 3: return _donusTarihi != null ? 'Otel Seç' : 'Gezilecek Yerler';
       case 4: return _donusTarihi != null ? 'Gezilecek Yerler' : 'Planı Onayla';
       case 5: return 'Planı Onayla';
       default: return 'Seyahat Planla';
@@ -189,18 +197,120 @@ class _PlanWizardScreenState extends State<PlanWizardScreen> {
   }
 
   Widget _buildHotelStep() {
-    return SingleChildScrollView(padding: const EdgeInsets.all(20), child: Column(children: [
-      _buildStepIndicator(), const SizedBox(height: 40),
-      Container(padding: const EdgeInsets.all(24), decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
-        child: Column(children: [
-          const Icon(Icons.hotel, size: 64, color: Colors.white70), const SizedBox(height: 16),
-          const Text('Otel Seçimi', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          Text('Bu özellik yakında eklenecek.\nŞimdilik bu adımı atlayabilirsiniz.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white.withValues(alpha: 0.7))),
-        ])),
-      const SizedBox(height: 32),
-      Row(children: [Expanded(child: _buildBackButton()), const SizedBox(width: 12), Expanded(child: _buildNextButton('Atla & Devam', () { _loadPlaces(); }))]),
-    ]));
+    final cityKey = _varis != null ? _iataToCity(_varis!.code) : null;
+    _otelSehirController.text = cityKey ?? '';
+
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        _buildStepIndicator(),
+        const SizedBox(height: 20),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(14)),
+          child: Column(
+            children: [
+              const Icon(Icons.hotel, size: 48, color: Colors.white70),
+              const SizedBox(height: 12),
+              const Text('Otel Seçimi', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text('Şehre göre otelleri arayıp seçebilirsiniz.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white.withValues(alpha: 0.7))),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: SizedBox(
+                height: 56,
+                child: TextField(
+                  controller: _otelSehirController,
+                  readOnly: true,
+                  decoration: InputDecoration(
+                    labelText: 'Şehir',
+                    filled: true,
+                    fillColor: Colors.white.withValues(alpha: 0.10),
+                    labelStyle: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 14, fontWeight: FontWeight.w500),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.15))),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.15))),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.white, width: 2)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            SizedBox(
+              height: 56,
+              child: ElevatedButton(
+                onPressed: cityKey == null
+                    ? null
+                    : () async {
+                        final checkIn = _gidisTarihi ?? DateTime.now();
+                        final checkOut = _donusTarihi ?? checkIn.add(const Duration(days: 1));
+                        setState(() {
+                          _hotellerYukleniyor = true;
+                          _hoteller = [];
+                        });
+                        try {
+                          final results = await _hotelService.searchHotels(city: cityKey, checkIn: checkIn, checkOut: checkOut);
+                          if (!mounted) return;
+                          setState(() {
+                            _hoteller = results;
+                          });
+                        } catch (e) {
+                          _showSnack('Otel arama hatası: $e');
+                        } finally {
+                          if (mounted) {
+                            setState(() {
+                              _hotellerYukleniyor = false;
+                            });
+                          }
+                        }
+                      },
+                child: const Text('Ara'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (_hotellerYukleniyor)
+          const Padding(
+            padding: EdgeInsets.only(top: 48),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (_hoteller == null || _hoteller!.isEmpty)
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text('Henüz otel yok. Arama yapın veya bu adımı atlayın.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white.withValues(alpha: 0.7))),
+          )
+        else
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _hoteller!.length,
+            separatorBuilder: (_, __) => const Divider(color: Colors.white24, height: 24),
+            itemBuilder: (context, idx) {
+              final h = _hoteller![idx];
+              final selected = _secilenOtel?.id == h.id;
+              return _SelectableHotelRow(
+                hotel: h,
+                selected: selected,
+                onTap: () => setState(() => _secilenOtel = h),
+              );
+            },
+          ),
+        const SizedBox(height: 20),
+        Row(
+          children: [
+            Expanded(child: _buildBackButton()),
+            const SizedBox(width: 12),
+            Expanded(child: _buildNextButton('Devam', () { _loadPlaces(); })),
+          ],
+        ),
+      ],
+    );
   }
 
   Widget _buildPlacesStep() {
@@ -332,6 +442,15 @@ class _PlanWizardScreenState extends State<PlanWizardScreen> {
     ]));
   }
 
+  @override
+  void dispose() {
+    _otelSehirController.dispose();
+    _flightService.dispose();
+    _placesService.dispose();
+    _hotelService.dispose();
+    super.dispose();
+  }
+
   // ========== ACTIONS ==========
   Future<void> _selectDate(bool isGidis) async {
     final picked = await showDatePicker(context: context, initialDate: DateTime.now().add(const Duration(days: 7)), firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 365)));
@@ -398,6 +517,14 @@ class _PlanWizardScreenState extends State<PlanWizardScreen> {
           'price': _secilenGidisUcus!.priceTL, 'duration': _secilenGidisUcus!.duration,
           'return_flight': returnFlight,
         } : null,
+        hotelInfo: _secilenOtel != null ? {
+          'id': _secilenOtel!.id,
+          'name': _secilenOtel!.name,
+          'address': _secilenOtel!.address,
+          'rating': _secilenOtel!.rating,
+          'price_per_night': _secilenOtel!.pricePerNight,
+          'image_url': _secilenOtel!.imageUrl,
+        } : null,
         selectedPlaces: _secilenYerler.map((y) => {'name': y.name, 'address': y.address, 'rating': y.rating}).toList(),
       );
       if (mounted) { _showSnack('Plan kaydedildi!'); Navigator.pop(context, true); }
@@ -412,5 +539,68 @@ class _PlanWizardScreenState extends State<PlanWizardScreen> {
   void _showSnack(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
+  }
+}
+
+class _SelectableHotelRow extends StatelessWidget {
+  final Hotel hotel;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _SelectableHotelRow({required this.hotel, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? Colors.white.withValues(alpha: 0.18) : Colors.white.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: SizedBox(
+                  width: 64,
+                  height: 64,
+                  child: hotel.imageUrl.isNotEmpty
+                      ? Image.network(
+                          hotel.imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const ColoredBox(
+                            color: Colors.white12,
+                            child: Icon(Icons.hotel, color: Colors.white70),
+                          ),
+                        )
+                      : const ColoredBox(
+                          color: Colors.white12,
+                          child: Icon(Icons.hotel, color: Colors.white70),
+                        ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(hotel.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 4),
+                    if (hotel.address.isNotEmpty)
+                      Text(hotel.address, style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12)),
+                    const SizedBox(height: 6),
+                    Text('⭐ ${hotel.rating.toStringAsFixed(1)}  •  ${hotel.pricePerNight?.toStringAsFixed(0) ?? '-'} ₺', style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 12)),
+                  ],
+                ),
+              ),
+              if (selected) const Icon(Icons.check_circle, color: Colors.green),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

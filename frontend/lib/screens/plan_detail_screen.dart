@@ -5,8 +5,6 @@ import '../models/tourist_place.dart';
 import '../services/travel_plan_service.dart';
 import '../services/flight_service.dart';
 import '../services/places_service.dart';
-import '../models/airport.dart';
-import '../widgets/airport_dropdown.dart';
 
 class PlanDetailScreen extends StatefulWidget {
   final Map<String, dynamic> plan;
@@ -41,6 +39,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> {
   Widget build(BuildContext context) {
     final flight = _plan['flight_info'] as Map<String, dynamic>?;
     final returnFlight = flight?['return_flight'] as Map<String, dynamic>?;
+    final hotel = _plan['hotel_info'] as Map<String, dynamic>?;
     final places = _plan['selected_places'] as List<dynamic>?;
 
     return Scaffold(
@@ -129,8 +128,15 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> {
                 icon: Icons.hotel,
                 title: 'Otel',
                 actionLabel: _editing ? 'Ekle' : null,
-                onAction: _editing ? () => _showSnack('Otel özelliği yakında eklenecek') : null,
-                child: Text('Otel eklenmemiş', style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontStyle: FontStyle.italic)),
+                onAction: _editing ? () => _showSnack('Otel seçimi için Planlama ekranından yeni plan oluşturabilirsin.') : null,
+                child: hotel != null
+                    ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        _row('Otel Adı', hotel['name']?.toString() ?? '-'),
+                        _row('Adres', hotel['address']?.toString() ?? '-'),
+                        _row('Puan', hotel['rating']?.toString() ?? '-'),
+                        _row('Gecelik', hotel['price_per_night'] != null ? '${(hotel['price_per_night'] as num).toStringAsFixed(0)} ₺' : '-'),
+                      ])
+                    : Text('Otel eklenmemiş', style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontStyle: FontStyle.italic)),
               ),
 
               // Gezilecek yerler

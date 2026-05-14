@@ -6,7 +6,7 @@ class PlacesService {
   // Backend URL'si - platforma göre otomatik ayarlanır
   // Android emülatör: 10.0.2.2, Web/Windows/Mac/Linux: localhost
   static String get _baseUrl {
-    return 'http://localhost:8001';
+    return 'http://localhost:8004';
   }
 
   final http.Client _client = http.Client();

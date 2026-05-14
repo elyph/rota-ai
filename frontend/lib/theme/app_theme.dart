@@ -82,21 +82,22 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.white.withValues(alpha: 0.06),
+        fillColor: Colors.white.withValues(alpha: 0.10),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: primaryColor, width: 1.5),
+          borderSide: const BorderSide(color: primaryColor, width: 2),
         ),
-        labelStyle: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
-        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
+        labelStyle: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 14, fontWeight: FontWeight.w500),
+        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 14),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
       cardTheme: CardThemeData(
         color: surfaceColor,
@@ -112,8 +113,8 @@ class AppTheme {
     );
   }
 
-  // Glass card decoration
-  static BoxDecoration glassCard({double opacity = 0.08, double borderOpacity = 0.12, double radius = 20}) {
+  // Glass card decoration with improved visibility
+  static BoxDecoration glassCard({double opacity = 0.12, double borderOpacity = 0.15, double radius = 20}) {
     return BoxDecoration(
       color: Colors.white.withValues(alpha: opacity),
       borderRadius: BorderRadius.circular(radius),
@@ -121,19 +122,53 @@ class AppTheme {
     );
   }
 
-  // Elevated glass card
+  // Elevated glass card with better shadow
   static BoxDecoration elevatedGlassCard({double radius = 20}) {
     return BoxDecoration(
       gradient: cardGradient,
       borderRadius: BorderRadius.circular(radius),
-      border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+      border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.2),
-          blurRadius: 20,
-          offset: const Offset(0, 8),
+          color: Colors.black.withValues(alpha: 0.3),
+          blurRadius: 24,
+          offset: const Offset(0, 10),
         ),
       ],
     );
   }
+
+  // Standard text styles
+  static const TextStyle headlineStyle = TextStyle(
+    fontSize: 24,
+    fontWeight: FontWeight.w700,
+    color: Colors.white,
+    letterSpacing: 0.3,
+  );
+
+  static const TextStyle titleStyle = TextStyle(
+    fontSize: 18,
+    fontWeight: FontWeight.w600,
+    color: Colors.white,
+    letterSpacing: 0.2,
+  );
+
+  static const TextStyle bodyStyle = TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.w400,
+    color: Colors.white,
+    height: 1.5,
+  );
+
+  static TextStyle labelStyle = TextStyle(
+    fontSize: 12,
+    fontWeight: FontWeight.w500,
+    color: Colors.white.withValues(alpha: 0.7),
+  );
+
+  static TextStyle hintStyle = TextStyle(
+    fontSize: 13,
+    fontWeight: FontWeight.w400,
+    color: Colors.white.withValues(alpha: 0.5),
+  );
 }

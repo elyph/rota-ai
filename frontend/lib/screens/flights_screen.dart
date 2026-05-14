@@ -105,19 +105,23 @@ class _FlightsScreenState extends State<FlightsScreen> {
           padding: const EdgeInsets.all(20),
           child: Container(
             padding: const EdgeInsets.all(20),
-            decoration: AppTheme.elevatedGlassCard(),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.flight, color: AppTheme.primaryColor, size: 22),
+                    const Icon(Icons.flight, color: AppTheme.accentColor, size: 22),
                     const SizedBox(width: 8),
                     const Text(
                       'Uçuş Bilgileri',
                       style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
                         color: Colors.white,
                       ),
                     ),
