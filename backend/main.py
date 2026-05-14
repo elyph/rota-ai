@@ -239,8 +239,26 @@ async def _fetch_hotels_serpapi(
             if not name:
                 continue
             
-            # Adres - SerpAPI'de doğrudan address alanı yok, description veya nearby_places kullanabiliriz
-            address = item.get("description", "")
+            # Adres - SerpAPI'de doğrudan address alanı yok, birden çok alanı dene
+            address = item.get("address", "")
+            if not address:
+                nearby = item.get("nearby_places", [])
+                if isinstance(nearby, list) and nearby:
+                    # nearby_places dict listesi olabilir, name alanlarını al
+                    names = []
+                    for p in nearby[:3]:
+                        if isinstance(p, dict):
+                            names.append(p.get("name", ""))
+                        elif isinstance(p, str):
+                            names.append(p)
+                    address = ", ".join(n for n in names if n)
+            if not address:
+                address = item.get("description", "")
+            # Eğer description varsa ve adres yoksa, description'ı adres olarak kullanma
+            # çünkü description genelde "Açık büfeli otel" gibi açıklamalar içerir
+            if address == item.get("description", "") and address:
+                # description'ı adres olarak değil, amenities'e ekle
+                address = f"{city} şehir merkezi"
             
             # Fiyat (günlük) - rate_per_night içindeki extracted_lowest
             price_val = None

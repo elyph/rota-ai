@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../models/flight_offer.dart';
 import '../models/tourist_place.dart';
+import '../models/hotel.dart';
 import '../services/travel_plan_service.dart';
 import '../services/flight_service.dart';
 import '../services/places_service.dart';
+import '../services/hotel_service.dart';
 
 class PlanDetailScreen extends StatefulWidget {
   final Map<String, dynamic> plan;
@@ -19,6 +21,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> {
   final TravelPlanService _planService = TravelPlanService();
   final FlightService _flightService = FlightService();
   final PlacesService _placesService = PlacesService();
+  final HotelService _hotelService = HotelService();
   bool _editing = false;
   late TextEditingController _notesController;
 
@@ -127,8 +130,8 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> {
               _buildSection(
                 icon: Icons.hotel,
                 title: 'Otel',
-                actionLabel: _editing ? 'Ekle' : null,
-                onAction: _editing ? () => _showSnack('Otel seçimi için Planlama ekranından yeni plan oluşturabilirsin.') : null,
+                actionLabel: _editing ? (hotel != null ? 'Değiştir' : 'Ekle') : null,
+                onAction: _editing ? () => _editHotel() : null,
                 child: hotel != null
                     ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         _row('Otel Adı', hotel['name']?.toString() ?? '-'),
@@ -375,6 +378,108 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> {
     );
   }
 
+  Future<void> _editHotel() async {
+    final iataCode = (_plan['arrival_city'] ?? '').toString().toUpperCase();
+    final cityName = _iataToCity(iataCode);
+    if (cityName.isEmpty) { _showSnack('Varış şehri bulunamadı!'); return; }
+
+    final checkInStr = _plan['departure_date']?.toString();
+    final checkOutStr = _plan['return_date']?.toString();
+    if (checkInStr == null || checkInStr.isEmpty) { _showSnack('Gidiş tarihi bulunamadı!'); return; }
+
+    DateTime checkIn;
+    try {
+      checkIn = DateTime.parse(checkInStr);
+    } catch (_) {
+      _showSnack('Tarih formatı hatalı!');
+      return;
+    }
+
+    DateTime checkOut;
+    try {
+      checkOut = checkOutStr != null ? DateTime.parse(checkOutStr) : checkIn.add(const Duration(days: 1));
+    } catch (_) {
+      checkOut = checkIn.add(const Duration(days: 1));
+    }
+
+    _showSnack('Oteller yükleniyor...');
+    try {
+      final hotels = await _hotelService.searchHotels(city: cityName, checkIn: checkIn, checkOut: checkOut);
+      if (!mounted) return;
+      if (hotels.isEmpty) { _showSnack('Otel bulunamadı!'); return; }
+
+      final selected = await showModalBottomSheet<Hotel>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (ctx) => _buildHotelPicker(hotels),
+      );
+
+      if (selected != null) {
+        setState(() {
+          _plan['hotel_info'] = {
+            'id': selected.id,
+            'name': selected.name,
+            'address': selected.address,
+            'rating': selected.rating,
+            'price_per_night': selected.pricePerNight,
+            'image_url': selected.imageUrl,
+          };
+        });
+        await _autoSave();
+      }
+    } catch (e) { _showSnack('Hata: $e'); }
+  }
+
+  Widget _buildHotelPicker(List<Hotel> hotels) {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.7,
+      decoration: const BoxDecoration(
+        color: Color(0xFF1a1a2e),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(children: [
+        Padding(padding: const EdgeInsets.all(16), child: Row(children: [
+          const Text('Otel Seç', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          const Spacer(),
+          IconButton(icon: const Icon(Icons.close, color: Colors.white), onPressed: () => Navigator.pop(context)),
+        ])),
+        Expanded(child: ListView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          itemCount: hotels.length,
+          itemBuilder: (ctx, i) {
+            final h = hotels[i];
+            return GestureDetector(
+              onTap: () => Navigator.pop(context, h),
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white.withValues(alpha: 0.15))),
+                child: Row(children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: SizedBox(
+                      width: 56, height: 56,
+                      child: h.imageUrl.isNotEmpty
+                          ? Image.network(h.imageUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const ColoredBox(color: Colors.white12, child: Icon(Icons.hotel, color: Colors.white70)))
+                          : const ColoredBox(color: Colors.white12, child: Icon(Icons.hotel, color: Colors.white70)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(h.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                    const SizedBox(height: 4),
+                    Text('⭐ ${h.rating.toStringAsFixed(1)}  •  ${h.pricePerNight?.toStringAsFixed(0) ?? '-'} ₺', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12)),
+                  ])),
+                ]),
+              ),
+            );
+          },
+        )),
+      ]),
+    );
+  }
+
   Future<void> _editPlaces() async {
     // IATA kodunu şehir adına çevir
     final iataCode = (_plan['arrival_city'] ?? '').toString().toUpperCase();
@@ -454,6 +559,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> {
         'departure_date': _plan['departure_date'],
         'return_date': _plan['return_date'],
         'flight_info': _plan['flight_info'],
+        'hotel_info': _plan['hotel_info'],
         'selected_places': _plan['selected_places'],
         'notes': _notesController.text,
         'status': _plan['status'],
