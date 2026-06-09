@@ -41,12 +41,11 @@ class AuthService {
   }
 
   // Google ile giriş
-  Future<bool> signInWithGoogle() async {
-    final response = await _supabase.auth.signInWithOAuth(
+  Future<void> signInWithGoogle() async {
+    await _supabase.auth.signInWithOAuth(
       OAuthProvider.google,
-      redirectTo: 'http://localhost:${Uri.base.port}',
+      queryParams: {'prompt': 'consent'},
     );
-    return response;
   }
 
   // Çıkış

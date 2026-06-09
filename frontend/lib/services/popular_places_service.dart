@@ -23,11 +23,16 @@ class PopularPlacesService {
 
       final placesList = jsonResponse['places'] as List? ?? [];
       return placesList.map((p) {
+        var photoUrl = p['photoUrl'] ?? '';
+        // Backend'den gelen relative photo URL'lerini tam URL'e çevir
+        if (photoUrl is String && photoUrl.startsWith('/')) {
+          photoUrl = '$_baseUrl$photoUrl';
+        }
         return PopularPlace(
           name: p['name'] ?? '',
           city: p['city'] ?? p['address'] ?? '',
           description: '',
-          imageUrl: p['photoUrl'] ?? '',
+          imageUrl: photoUrl,
           rating: (p['rating'] ?? 0).toDouble(),
           latitude: (p['latitude'] ?? 0).toDouble(),
           longitude: (p['longitude'] ?? 0).toDouble(),

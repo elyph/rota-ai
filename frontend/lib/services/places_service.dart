@@ -44,7 +44,17 @@ class PlacesService {
       }
 
       final placesList = jsonResponse['places'] as List? ?? [];
-      return placesList.map((p) => TouristPlace.fromJson(p)).toList();
+      return placesList.map((p) {
+        final data = Map<String, dynamic>.from(p);
+        // Backend'den gelen relative photo URL'lerini tam URL'e çevir
+        if (data['photoUrl'] is String) {
+          final url = data['photoUrl'] as String;
+          if (url.startsWith('/')) {
+            data['photoUrl'] = '$_baseUrl$url';
+          }
+        }
+        return TouristPlace.fromJson(data);
+      }).toList();
     } catch (e) {
       rethrow;
     }

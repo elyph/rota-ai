@@ -7,9 +7,12 @@ import 'flights_screen.dart';
 import 'hotels_screen.dart';
 import 'places_screen.dart';
 import 'popular_places_list_screen.dart';
+import 'profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final VoidCallback? onNavigateToProfile;
+
+  const HomeScreen({super.key, this.onNavigateToProfile});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -23,6 +26,34 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadPopularPlaces();
+  }
+
+  Widget _buildUserAvatar(User? user) {
+    final fullName = user?.userMetadata?['full_name'] as String? ?? 'A';
+    final photoUrl = user?.userMetadata?['avatar_url'] as String?;
+    final initial = fullName.isNotEmpty ? fullName[0].toUpperCase() : 'A';
+
+    final colors = [
+      const Color(0xFF5374FF),
+      const Color(0xFFA855F7),
+      const Color(0xFF10B981),
+      const Color(0xFFF59E0B),
+      const Color(0xFFEF4444),
+      const Color(0xFF8B5CF6),
+      const Color(0xFFEC4899),
+      const Color(0xFF14B8A6),
+    ];
+    final bgColor = colors[fullName.hashCode.abs() % colors.length];
+
+    if (photoUrl == null || photoUrl.isEmpty) {
+      return CircleAvatar(
+        radius: 24,
+        backgroundColor: bgColor,
+        child: Text(initial, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 20)),
+      );
+    }
+
+    return _UserAvatar(radius: 24, photoUrl: photoUrl, initial: initial, bgColor: bgColor);
   }
 
   Future<void> _loadPopularPlaces() async {
@@ -81,11 +112,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ],
                   ),
-                  const CircleAvatar(
-                    radius: 24,
-                    backgroundImage:
-                        NetworkImage('https://i.pravatar.cc/150?img=11'),
-                  ),
+                  _buildUserAvatar(user),
                 ],
               ),
               const SizedBox(height: 24),
@@ -93,11 +120,16 @@ class _HomeScreenState extends State<HomeScreen> {
               // Hero Card with airplane illustration
               GestureDetector(
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const PlanWizardScreen()),
-                  );
+                  final user = Supabase.instance.client.auth.currentUser;
+                  if (user == null) {
+                    widget.onNavigateToProfile?.call();
+                  } else {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const PlanWizardScreen()),
+                    );
+                  }
                 },
                 child: Container(
                   width: double.infinity,
@@ -553,6 +585,46 @@ class _HomeScreenState extends State<HomeScreen> {
           )
         ],
       ),
+    );
+  }
+}
+
+class _UserAvatar extends StatefulWidget {
+  final double radius;
+  final String photoUrl;
+  final String initial;
+  final Color bgColor;
+
+  const _UserAvatar({
+    required this.radius,
+    required this.photoUrl,
+    required this.initial,
+    required this.bgColor,
+  });
+
+  @override
+  State<_UserAvatar> createState() => _UserAvatarState();
+}
+
+class _UserAvatarState extends State<_UserAvatar> {
+  bool _hasError = false;
+
+  @override
+  Widget build(BuildContext context) {
+    if (_hasError) {
+      return CircleAvatar(
+        radius: widget.radius,
+        backgroundColor: widget.bgColor,
+        child: Text(widget.initial, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 20)),
+      );
+    }
+
+    return CircleAvatar(
+      radius: widget.radius,
+      backgroundImage: NetworkImage(widget.photoUrl),
+      onBackgroundImageError: (_, __) {
+        if (mounted) setState(() => _hasError = true);
+      },
     );
   }
 }

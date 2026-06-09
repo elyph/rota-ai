@@ -1,6 +1,9 @@
 from fastapi import FastAPI
-from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from pydantic import BaseModel
 import httpx
 import os
 from datetime import date, timedelta
@@ -11,13 +14,34 @@ load_dotenv()
 
 app = FastAPI()
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Dinamik CORS - gelen origin'i yansitir, credentials ile uyumludur
+class DynamicCORSMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        origin = request.headers.get("origin")
+        response = await call_next(request)
+        if origin:
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+            response.headers["Access-Control-Allow-Headers"] = "*"
+            if request.method == "OPTIONS":
+                response.status_code = 204
+        return response
+
+app.add_middleware(DynamicCORSMiddleware)
+
+@app.get("/place-photo")
+async def get_place_photo(maxwidth: int = 800, photo_reference: str = ""):
+    if not photo_reference or not GOOGLE_PLACES_API_KEY:
+        return Response(status_code=404)
+
+    url = f"https://maps.googleapis.com/maps/api/place/photo?maxwidth={maxwidth}&photo_reference={photo_reference}&key={GOOGLE_PLACES_API_KEY}"
+
+    async with httpx.AsyncClient(follow_redirects=True, timeout=15.0) as client:
+        resp = await client.get(url)
+
+    content_type = resp.headers.get("content-type", "image/jpeg")
+    return Response(content=resp.content, media_type=content_type)
 
 GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY", "")
 SERPAPI_KEY = os.getenv("SERPAPI_KEY", "")
@@ -446,7 +470,7 @@ async def _fetch_places_from_google(lat: float, lng: float, radius: int, max_res
         photo_url = ""
         if "photos" in place and len(place["photos"]) > 0:
             photo_ref = place["photos"][0]["photo_reference"]
-            photo_url = f"https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference={photo_ref}&key={GOOGLE_PLACES_API_KEY}"
+            photo_url = f"/place-photo?maxwidth=800&photo_reference={photo_ref}"
         
         places.append({
             "id": place.get("place_id", ""),

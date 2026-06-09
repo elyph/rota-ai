@@ -29,6 +29,18 @@ class RotaAIApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       home: const MainNavigation(),
+      builder: (context, child) {
+        // Flutter web keyboard insets hatasını önlemek için
+        // negatif viewInsets'i clamp'le (bilinen Flutter web bug'ı)
+        final mediaQuery = MediaQuery.of(context);
+        final bottomInset = mediaQuery.viewInsets.bottom.clamp(0.0, double.infinity);
+        return MediaQuery(
+          data: mediaQuery.copyWith(
+            viewInsets: mediaQuery.viewInsets.copyWith(bottom: bottomInset),
+          ),
+          child: child!,
+        );
+      },
     );
   }
 }
@@ -43,12 +55,12 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   int _selectedIndex = 0;
 
-  final List<Widget> _screens = const [
-    HomeScreen(),
-    FlightsScreen(),
-    HotelsScreen(),
-    PlacesScreen(),
-    ProfileScreen(),
+  late final List<Widget> _screens = [
+    HomeScreen(onNavigateToProfile: () => setState(() => _selectedIndex = 4)),
+    const FlightsScreen(),
+    const HotelsScreen(),
+    const PlacesScreen(),
+    const ProfileScreen(),
   ];
 
   @override
