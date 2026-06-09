@@ -8,6 +8,7 @@ import '../services/places_service.dart';
 import '../services/travel_plan_service.dart';
 import '../widgets/airport_dropdown.dart';
 import '../services/hotel_service.dart';
+import '../services/itinerary_service.dart';
 import '../models/hotel.dart';
 
 class PlanWizardScreen extends StatefulWidget {
@@ -44,6 +45,7 @@ class _PlanWizardScreenState extends State<PlanWizardScreen> {
   final PlacesService _placesService = PlacesService();
   final TravelPlanService _planService = TravelPlanService();
   final HotelService _hotelService = HotelService();
+  final ItineraryService _itineraryService = ItineraryService();
 
   int get _totalSteps => _donusTarihi != null ? 6 : 5;
 
@@ -486,6 +488,7 @@ class _PlanWizardScreenState extends State<PlanWizardScreen> {
     _flightService.dispose();
     _placesService.dispose();
     _hotelService.dispose();
+    _itineraryService.dispose();
     super.dispose();
   }
 
@@ -554,6 +557,30 @@ class _PlanWizardScreenState extends State<PlanWizardScreen> {
 
   Future<void> _savePlan() async {
     try {
+      // 1. Gemini'den gün gün program oluştur
+      _showSnack('✨ AI programınız hazırlanıyor...');
+      String? itinerary;
+      try {
+        itinerary = await _itineraryService.generateItinerary(
+          departureCity: _kalkis!.code,
+          arrivalCity: _varis!.code,
+          departureDate: _gidisTarihi!.toIso8601String().split('T')[0],
+          returnDate: _donusTarihi?.toIso8601String().split('T')[0],
+          hotelName: _secilenOtel?.name,
+          selectedPlaces: _secilenYerler
+              .map((y) => {'name': y.name, 'address': y.address})
+              .toList(),
+          flightAirline: _secilenGidisUcus?.airline,
+          flightDepartureTime: _secilenGidisUcus?.departureTime,
+          returnFlightAirline: _secilenDonusUcus?.airline,
+          returnFlightDepartureTime: _secilenDonusUcus?.departureTime,
+        );
+      } catch (_) {
+        // Gemini başarısız olursa itinerary olmadan devam et
+        itinerary = null;
+      }
+
+      // 2. Planı kaydet
       final returnFlight = _secilenDonusUcus != null ? {
         'airline': _secilenDonusUcus!.airline, 'flight_number': _secilenDonusUcus!.flightNumber,
         'departure_time': _secilenDonusUcus!.departureTime, 'arrival_time': _secilenDonusUcus!.arrivalTime,
@@ -580,6 +607,7 @@ class _PlanWizardScreenState extends State<PlanWizardScreen> {
           'image_url': _secilenOtel!.imageUrl,
         } : null,
         selectedPlaces: _secilenYerler.map((y) => {'name': y.name, 'address': y.address, 'rating': y.rating}).toList(),
+        itinerary: itinerary,
       );
       if (mounted) { _showSnack('Plan kaydedildi!'); Navigator.pop(context, true); }
     } catch (e) { _showSnack('Kaydetme hatası: $e'); }

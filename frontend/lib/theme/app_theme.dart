@@ -22,6 +22,16 @@ class AppTheme {
     ],
   );
 
+  static const LinearGradient detailGradient = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [
+      Color(0xFF1E293B), // Slate 800 — daha açık
+      Color(0xFF2D2B5E), // Orta indigo
+      Color(0xFF1E293B), // Slate 800
+    ],
+  );
+
   static const LinearGradient cardGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,

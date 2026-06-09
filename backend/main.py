@@ -9,6 +9,8 @@ import os
 from datetime import date, timedelta
 from dotenv import load_dotenv
 import asyncio
+import vertexai
+from vertexai.generative_models import GenerativeModel, Content, Part
 
 load_dotenv()
 
@@ -45,9 +47,12 @@ async def get_place_photo(maxwidth: int = 800, photo_reference: str = ""):
 
 GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY", "")
 SERPAPI_KEY = os.getenv("SERPAPI_KEY", "")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 RAPIDAPI_HOTEL_KEY = os.getenv("RAPIDAPI_HOTEL_KEY", "")
 RAPIDAPI_HOTEL_HOST = os.getenv("RAPIDAPI_HOTEL_HOST", "")
+
+VERTEX_PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT", "project-f98e215d-48a4-40e2-8d3")
+VERTEX_LOCATION = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
+vertexai.init(project=VERTEX_PROJECT_ID, location=VERTEX_LOCATION)
 
 # Şehirlerin koordinatları (enlem, boylam)
 CITY_COORDINATES = {
@@ -120,6 +125,18 @@ class HotelSearchRequest(BaseModel):
     min_rating: float = 0.0
     max_price: Optional[float] = None
 
+class ItineraryRequest(BaseModel):
+    departure_city: str
+    arrival_city: str
+    departure_date: str        # YYYY-MM-DD
+    return_date: Optional[str] = None
+    hotel_name: Optional[str] = None
+    selected_places: list = []  # [{"name": "...", "address": "..."}]
+    flight_airline: Optional[str] = None
+    flight_departure_time: Optional[str] = None
+    return_flight_airline: Optional[str] = None
+    return_flight_departure_time: Optional[str] = None
+
 @app.post("/generate-plan")
 async def create_plan(request: TravelRequest):
     return {
@@ -132,6 +149,92 @@ async def create_plan(request: TravelRequest):
             {"item": "🍔 Yeme - İçme", "price": request.budget * 0.3}
         ]
     }
+
+@app.post("/generate-itinerary")
+async def generate_itinerary(request: ItineraryRequest):
+    """Gemini AI ile gün gün seyahat programı oluşturur."""
+    try:
+        itinerary = await _generate_itinerary_with_gemini(request)
+        return {"status": "success", "itinerary": itinerary}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+async def _generate_itinerary_with_gemini(request: ItineraryRequest) -> str:
+    """Kullanıcının seçimlerine göre Gemini'den gün gün program oluşturur."""
+
+    # Kaç gün olduğunu hesapla
+    try:
+        dep = date.fromisoformat(request.departure_date)
+        ret = date.fromisoformat(request.return_date) if request.return_date else dep
+        num_days = max(1, (ret - dep).days + 1)
+    except Exception:
+        num_days = 1
+
+    # Gezilecek yerleri metne çevir
+    places_text = ""
+    if request.selected_places:
+        places_list = [p.get("name", "") for p in request.selected_places if p.get("name")]
+        places_text = ", ".join(places_list)
+    else:
+        places_text = "kullanıcı tarafından seçilmemiş"
+
+    # Dönüş uçuşu bilgisi
+    return_flight_info = ""
+    if request.return_flight_airline and request.return_flight_departure_time:
+        return_flight_info = f"- Dönüş uçuşu: {request.return_flight_airline}, Kalkış saati: {request.return_flight_departure_time}"
+
+    # Prompt oluştur
+    prompt = f"""Aşağıdaki bilgilere göre {num_days} günlük detaylı bir seyahat programı oluştur.
+
+ÖNEMLI: Sadece programı yaz. "Elbette", "Tabii ki", "Harika bir soru" gibi giriş cümleleri YAZMA. Doğrudan ## 1. Gün ile başla.
+
+Seyahat bilgileri:
+- Kalkış şehri: {request.departure_city}
+- Varış şehri: {request.arrival_city}
+- Gidiş tarihi: {request.departure_date}
+- Dönüş tarihi: {request.return_date or "Belirtilmemiş"}
+- Konaklama: {request.hotel_name or "Belirtilmemiş"}
+- Gezilecek yerler: {places_text}
+{f"- Gidiş uçuşu: {request.flight_airline}, Kalkış saati: {request.flight_departure_time}" if request.flight_airline else ""}
+{return_flight_info}
+
+Lütfen şu formatta gün gün program yaz:
+
+## 1. Gün ({request.departure_date})
+☀️ **Sabah:**
+[aktivite ve öneriler]
+
+🌤 **Öğle:**
+[aktivite, yemek önerisi]
+
+🌙 **Akşam:**
+[aktivite, akşam yemeği önerisi]
+
+💡 **İpuçları:** [o güne özel pratik bilgiler]
+
+---
+
+## 2. Gün
+...
+
+Kurallar:
+- DOĞRUDAN ## 1. Gün ile başla, giriş cümlesi yazma
+- Son gün (dönüş günü) için dönüş uçuşu saatini kesinlikle dikkate al; uçuştan önce yetişebilecek aktiviteler planla
+- Gezilecek yerleri günlere mantıklı şekilde dağıt (coğrafi yakınlık ve ziyaret süresi göz önünde bulundur)
+- Her gün için yemek önerisi ekle (yerel lezzetler)
+- Ulaşım ipuçları ekle
+- Varsa ziyaret saatleri, bilet ücretleri hakkında kısa bilgi ver
+- Türkçe yaz"""
+
+    model = GenerativeModel("gemini-2.5-pro")
+    response = await asyncio.get_event_loop().run_in_executor(
+        None,
+        lambda: model.generate_content(
+            prompt,
+            generation_config={"temperature": 0.8, "max_output_tokens": 8192},
+        )
+    )
+    return response.text
 
 @app.post("/nearby-places")
 async def get_nearby_places(request: PlaceRequest):
@@ -643,9 +746,6 @@ class ChatRequest(BaseModel):
 @app.post("/chat")
 async def chat(request: ChatRequest):
     """Gemini AI ile seyahat asistanı chatbot."""
-    if not GEMINI_API_KEY:
-        return {"status": "error", "message": "Gemini API anahtarı yapılandırılmamış."}
-
     try:
         response = await _chat_with_gemini(
             message=request.message,
@@ -686,46 +786,28 @@ Kuralların:
         for plan in user_plans[:3]:  # Max 3 plan
             context += f"- {plan.get('title', '')}: {plan.get('departure_city', '')} → {plan.get('arrival_city', '')}, Tarih: {plan.get('departure_date', '')}\n"
 
-    # Gemini API isteği
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key={GEMINI_API_KEY}"
-
     # Mesaj geçmişini oluştur
     contents = []
-
-    # Geçmiş mesajları ekle
     for msg in history[-10:]:  # Son 10 mesaj
         role = "user" if msg.get("role") == "user" else "model"
-        contents.append({"role": role, "parts": [{"text": msg.get("content", "")}]})
+        contents.append(Content(role=role, parts=[Part.from_text(msg.get("content", ""))]))
+    contents.append(Content(role="user", parts=[Part.from_text(message)]))
 
-    # Yeni mesajı ekle
-    contents.append({"role": "user", "parts": [{"text": message}]})
+    model = GenerativeModel(
+        "gemini-2.5-pro",
+        system_instruction=system_prompt + context,
+    )
+    response = await asyncio.get_event_loop().run_in_executor(
+        None,
+        lambda: model.generate_content(
+            contents,
+            generation_config={"temperature": 0.7, "max_output_tokens": 8192},
+        )
+    )
 
-    body = {
-        "contents": contents,
-        "systemInstruction": {
-            "parts": [{"text": system_prompt + context}]
-        },
-        "generationConfig": {
-            "temperature": 0.7,
-            "maxOutputTokens": 1024,
-        }
-    }
-
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        response = await client.post(url, json=body)
-        response.raise_for_status()
-        data = response.json()
-
-    # Yanıtı çıkar
-    candidates = data.get("candidates", [])
-    if not candidates:
+    if not response.text:
         return "Üzgünüm, şu an yanıt oluşturamadım. Tekrar dener misin?"
-
-    parts = candidates[0].get("content", {}).get("parts", [])
-    if not parts:
-        return "Üzgünüm, bir sorun oluştu."
-
-    return parts[0].get("text", "")
+    return response.text
 
 if __name__ == "__main__":
     import uvicorn
