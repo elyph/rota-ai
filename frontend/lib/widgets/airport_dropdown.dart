@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../models/airport.dart';
-import '../theme/app_theme.dart';
 
 class AirportDropdown extends StatelessWidget {
   final String label;
@@ -30,27 +29,27 @@ class AirportDropdown extends StatelessWidget {
       itemHeight: 64,
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon, color: Colors.white.withValues(alpha: 0.8)),
+        prefixIcon: Icon(icon, color: const Color(0xFF64748B)),
         filled: true,
-        fillColor: Colors.white.withValues(alpha: 0.10),
+        fillColor: const Color(0xFFF1F5F9),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+          borderSide: const BorderSide(color: Colors.transparent),
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+          borderSide: const BorderSide(color: Colors.transparent),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.white, width: 2),
+          borderSide: const BorderSide(color: Color(0xFF5374FF), width: 2),
         ),
-        labelStyle: TextStyle(color: Colors.white.withValues(alpha: 0.8)),
+        labelStyle: const TextStyle(color: Color(0xFF64748B)),
       ),
-      hint: Text('Seçiniz', style: TextStyle(color: Colors.white.withValues(alpha: 0.6))),
-      dropdownColor: const Color(0xFF1E293B),
-      iconEnabledColor: Colors.white.withValues(alpha: 0.8),
-      style: const TextStyle(color: Colors.white),
+      hint: const Text('Seçiniz', style: TextStyle(color: Color(0xFF64748B))),
+      dropdownColor: Colors.white,
+      iconEnabledColor: const Color(0xFF64748B),
+      style: const TextStyle(color: Color(0xFF0F172A)),
       isExpanded: true,
       selectedItemBuilder: (context) {
         return availableAirports.map((airport) {
@@ -61,7 +60,7 @@ class AirportDropdown extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                color: Colors.white,
+                color: Color(0xFF0F172A),
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
               ),
@@ -75,9 +74,9 @@ class AirportDropdown extends StatelessWidget {
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppTheme.accentColor.withValues(alpha: 0.18),
+                  color: const Color(0xFF5374FF).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -85,7 +84,7 @@ class AirportDropdown extends StatelessWidget {
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 12,
-                    color: Colors.white,
+                    color: Color(0xFF5374FF),
                   ),
                 ),
               ),
@@ -100,16 +99,16 @@ class AirportDropdown extends StatelessWidget {
                       style: const TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
-                        color: Colors.white,
+                        color: Color(0xFF0F172A),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
                       airport.name,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.65),
+                      style: const TextStyle(
                         fontSize: 11,
+                        color: Color(0xFF64748B),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -125,3 +124,4 @@ class AirportDropdown extends StatelessWidget {
     );
   }
 }
+

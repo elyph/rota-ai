@@ -50,17 +50,39 @@ class _PlanWizardScreenState extends State<PlanWizardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: Text(_getStepTitle()),
+        leading: Navigator.canPop(context) ? Align(
+          alignment: Alignment.center,
+          child: GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              margin: const EdgeInsets.only(left: 16),
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(10)),
+              child: const Icon(Icons.arrow_back_rounded, size: 20, color: Color(0xFF0F172A)),
+            ),
+          ),
+        ) : null,
+        title: Text(
+          _getStepTitle(),
+          style: const TextStyle(
+            color: Color(0xFF0F172A),
+            fontWeight: FontWeight.w700,
+            fontSize: 20,
+          ),
+        ),
         centerTitle: true,
-        backgroundColor: AppTheme.primaryColor,
-        foregroundColor: Colors.white,
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF0F172A),
         elevation: 0,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(color: const Color(0xFFF1F5F9), height: 1),
+        ),
       ),
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
-        child: SafeArea(child: _buildCurrentStep()),
-      ),
+      body: SafeArea(child: _buildCurrentStep()),
     );
   }
 
@@ -107,13 +129,17 @@ class _PlanWizardScreenState extends State<PlanWizardScreen> {
           const SizedBox(height: 24),
           Container(
             padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 12, offset: const Offset(0, 4))],
+            ),
             child: Column(
               children: [
-                AirportDropdown(label: 'Kalkış', icon: Icons.flight_takeoff, selectedAirport: _kalkis, onChanged: (a) => setState(() => _kalkis = a), excludeAirports: _varis != null ? [_varis!] : []),
-                const SizedBox(height: 14),
-                AirportDropdown(label: 'Varış', icon: Icons.flight_land, selectedAirport: _varis, onChanged: (a) => setState(() => _varis = a), excludeAirports: _kalkis != null ? [_kalkis!] : []),
-                const SizedBox(height: 14),
+                AirportDropdown(label: 'Kalkış', icon: Icons.flight_takeoff_rounded, selectedAirport: _kalkis, onChanged: (a) => setState(() => _kalkis = a), excludeAirports: _varis != null ? [_varis!] : []),
+                const SizedBox(height: 16),
+                AirportDropdown(label: 'Varış', icon: Icons.flight_land_rounded, selectedAirport: _varis, onChanged: (a) => setState(() => _varis = a), excludeAirports: _kalkis != null ? [_kalkis!] : []),
+                const SizedBox(height: 16),
                 Row(children: [
                   Expanded(child: _buildDateButton('Gidiş', _gidisTarihi, () => _selectDate(true))),
                   const SizedBox(width: 12),
@@ -133,17 +159,17 @@ class _PlanWizardScreenState extends State<PlanWizardScreen> {
   }
 
   Widget _buildFlightSelectStep({required bool isReturn}) {
-    if (_ucusYukleniyor) return const Center(child: CircularProgressIndicator(color: Colors.white));
+    if (_ucusYukleniyor) return const Center(child: CircularProgressIndicator(color: Color(0xFF5374FF)));
     final ucuslar = isReturn ? _donusUcuslari : _gidisUcuslari;
     final secilen = isReturn ? _secilenDonusUcus : _secilenGidisUcus;
 
     if (ucuslar == null || ucuslar.isEmpty) {
       return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        const Icon(Icons.flight_outlined, size: 64, color: Colors.white70),
+        const Icon(Icons.flight_outlined, size: 64, color: Color(0xFF64748B)),
         const SizedBox(height: 16),
-        Text(isReturn ? 'Dönüş uçuşu bulunamadı' : 'Gidiş uçuşu bulunamadı', style: const TextStyle(color: Colors.white, fontSize: 18)),
+        Text(isReturn ? 'Dönüş uçuşu bulunamadı' : 'Gidiş uçuşu bulunamadı', style: const TextStyle(color: Color(0xFF0F172A), fontSize: 18, fontWeight: FontWeight.w600)),
         const SizedBox(height: 16),
-        _buildBackButton(),
+        SizedBox(width: 200, child: _buildBackButton()),
       ]));
     }
 
@@ -151,7 +177,7 @@ class _PlanWizardScreenState extends State<PlanWizardScreen> {
       Padding(padding: const EdgeInsets.all(16), child: Column(children: [
         _buildStepIndicator(),
         const SizedBox(height: 8),
-        Text(isReturn ? 'Dönüş uçuşunuzu seçin' : 'Gidiş uçuşunuzu seçin', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13)),
+        Text(isReturn ? 'Dönüş uçuşunuzu seçin' : 'Gidiş uçuşunuzu seçin', style: const TextStyle(color: Color(0xFF64748B), fontSize: 14)),
       ])),
       Expanded(child: ListView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -162,38 +188,43 @@ class _PlanWizardScreenState extends State<PlanWizardScreen> {
           return GestureDetector(
             onTap: () => setState(() { if (isReturn) _secilenDonusUcus = ucus; else _secilenGidisUcus = ucus; }),
             child: Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.all(14),
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: selected ? Colors.white.withValues(alpha: 0.25) : Colors.white.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: selected ? Colors.white : Colors.white.withValues(alpha: 0.15), width: selected ? 2 : 1),
+                color: selected ? const Color(0xFF5374FF).withValues(alpha: 0.08) : Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: selected ? const Color(0xFF5374FF) : Colors.transparent, width: 2),
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4))],
               ),
               child: Row(children: [
-                if (selected) const Icon(Icons.check_circle, color: Colors.green, size: 22)
-                else Icon(Icons.radio_button_off, color: Colors.white.withValues(alpha: 0.4), size: 22),
-                const SizedBox(width: 12),
+                if (selected) const Icon(Icons.check_circle, color: Color(0xFF5374FF), size: 24)
+                else const Icon(Icons.radio_button_off, color: Color(0xFFCBD5E1), size: 24),
+                const SizedBox(width: 16),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(ucus.airline, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                  const SizedBox(height: 4),
-                  Text('${ucus.departureTime} → ${ucus.arrivalTime}  •  ${ucus.duration}', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12)),
+                  Text(ucus.airline, style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 15)),
+                  const SizedBox(height: 6),
+                  Text('${ucus.departureTime} → ${ucus.arrivalTime}  •  ${ucus.duration}', style: const TextStyle(color: Color(0xFF64748B), fontSize: 13)),
                 ])),
-                Text('${ucus.priceTL.toStringAsFixed(0)} ₺', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                Text('${ucus.priceTL.toStringAsFixed(0)} ₺', style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w800, fontSize: 16)),
               ]),
             ),
           );
         },
       )),
-      Padding(padding: const EdgeInsets.all(16), child: Row(children: [
-        Expanded(child: _buildBackButton()),
-        const SizedBox(width: 12),
-        Expanded(child: _buildNextButton('Devam', () {
-          if (!isReturn && _secilenGidisUcus == null) { _showSnack('Bir uçuş seçin!'); return; }
-          if (isReturn && _secilenDonusUcus == null) { _showSnack('Bir dönüş uçuşu seçin!'); return; }
-          if (!isReturn && _donusTarihi != null) { _searchFlights(isReturn: true); }
-          else { setState(() => _currentStep++); }
-        })),
-      ])),
+      Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -4))]),
+        child: Row(children: [
+          Expanded(child: _buildBackButton()),
+          const SizedBox(width: 12),
+          Expanded(child: _buildNextButton('Devam', () {
+            if (!isReturn && _secilenGidisUcus == null) { _showSnack('Bir uçuş seçin!'); return; }
+            if (isReturn && _secilenDonusUcus == null) { _showSnack('Bir dönüş uçuşu seçin!'); return; }
+            if (!isReturn && _donusTarihi != null) { _searchFlights(isReturn: true); }
+            else { setState(() => _currentStep++); }
+          })),
+        ]),
+      ),
     ]);
   }
 
@@ -209,58 +240,71 @@ class _PlanWizardScreenState extends State<PlanWizardScreen> {
       });
     }
 
-    return ListView(
-      padding: const EdgeInsets.all(20),
+    return Column(
       children: [
-        _buildStepIndicator(),
-        const SizedBox(height: 20),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(14)),
-          child: Column(
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.all(20),
             children: [
-              const Icon(Icons.hotel, size: 48, color: Colors.white70),
-              const SizedBox(height: 12),
-              const Text('Otel Seçimi', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              Text('${cityKey?.toUpperCase() ?? ''} bölgesindeki oteller listeleniyor.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white.withValues(alpha: 0.7))),
+              _buildStepIndicator(),
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 12, offset: const Offset(0, 4))],
+                ),
+                child: Column(
+                  children: [
+                    const Icon(Icons.hotel_rounded, size: 48, color: Color(0xFF5374FF)),
+                    const SizedBox(height: 12),
+                    const Text('Otel Seçimi', style: TextStyle(color: Color(0xFF0F172A), fontSize: 18, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Text('${cityKey?.toUpperCase() ?? ''} bölgesindeki oteller listeleniyor.', textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFF64748B))),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              if (_hotellerYukleniyor)
+                const Padding(
+                  padding: EdgeInsets.only(top: 40),
+                  child: Center(child: CircularProgressIndicator(color: Color(0xFF5374FF))),
+                )
+              else if (_hoteller == null || _hoteller!.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Text('Bu bölgede otel bulunamadı.', textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF64748B))),
+                )
+              else
+                ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _hoteller!.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (context, idx) {
+                    final h = _hoteller![idx];
+                    final selected = _secilenOtel?.id == h.id;
+                    return _SelectableHotelRow(
+                      hotel: h,
+                      selected: selected,
+                      onTap: () => setState(() => _secilenOtel = h),
+                    );
+                  },
+                ),
             ],
           ),
         ),
-        const SizedBox(height: 12),
-        if (_hotellerYukleniyor)
-          const Padding(
-            padding: EdgeInsets.only(top: 48),
-            child: Center(child: CircularProgressIndicator()),
-          )
-        else if (_hoteller == null || _hoteller!.isEmpty)
-          Padding(
-            padding: const EdgeInsets.all(24),
-            child: Text('Bu bölgede otel bulunamadı.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white.withValues(alpha: 0.7))),
-          )
-        else
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: _hoteller!.length,
-            separatorBuilder: (_, __) => const Divider(color: Colors.white24, height: 24),
-            itemBuilder: (context, idx) {
-              final h = _hoteller![idx];
-              final selected = _secilenOtel?.id == h.id;
-              return _SelectableHotelRow(
-                hotel: h,
-                selected: selected,
-                onTap: () => setState(() => _secilenOtel = h),
-              );
-            },
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -4))]),
+          child: Row(
+            children: [
+              Expanded(child: _buildBackButton()),
+              const SizedBox(width: 12),
+              Expanded(child: _buildNextButton('Devam', () { _loadPlaces(); })),
+            ],
           ),
-        const SizedBox(height: 20),
-        Row(
-          children: [
-            Expanded(child: _buildBackButton()),
-            const SizedBox(width: 12),
-            Expanded(child: _buildNextButton('Devam', () { _loadPlaces(); })),
-          ],
         ),
       ],
     );
@@ -291,142 +335,148 @@ class _PlanWizardScreenState extends State<PlanWizardScreen> {
   }
 
   Widget _buildPlacesStep() {
-    if (_yerlerYukleniyor) return const Center(child: CircularProgressIndicator(color: Colors.white));
+    if (_yerlerYukleniyor) return const Center(child: CircularProgressIndicator(color: Color(0xFF5374FF)));
     if (_yerler == null || _yerler!.isEmpty) {
       return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        const Icon(Icons.explore_off, size: 64, color: Colors.white70), const SizedBox(height: 16),
-        const Text('Yer bulunamadı', style: TextStyle(color: Colors.white, fontSize: 18)),
-        const SizedBox(height: 16),
-        _buildNextButton('Devam Et', () => setState(() => _currentStep = _totalSteps - 1)),
+        const Icon(Icons.explore_off, size: 64, color: Color(0xFF64748B)), const SizedBox(height: 16),
+        const Text('Yer bulunamadı', style: TextStyle(color: Color(0xFF0F172A), fontSize: 18, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 24),
+        SizedBox(width: 200, child: _buildNextButton('Devam Et', () => setState(() => _currentStep = _totalSteps - 1))),
       ]));
     }
     return Column(children: [
-      Padding(padding: const EdgeInsets.fromLTRB(16, 16, 16, 8), child: Column(children: [
-        _buildStepIndicator(), const SizedBox(height: 12),
-        Text('Ziyaret etmek istediğiniz yerleri seçin', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13)),
+      Padding(padding: const EdgeInsets.fromLTRB(20, 20, 20, 12), child: Column(children: [
+        _buildStepIndicator(), const SizedBox(height: 16),
+        const Text('Ziyaret etmek istediğiniz yerleri seçin', style: TextStyle(color: Color(0xFF64748B), fontSize: 14)),
       ])),
       Expanded(child: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 16), itemCount: _yerler!.length,
+        padding: const EdgeInsets.symmetric(horizontal: 20), itemCount: _yerler!.length,
         itemBuilder: (context, index) {
           final yer = _yerler![index]; final selected = _secilenYerler.contains(yer);
           return GestureDetector(
             onTap: () { setState(() { if (selected) _secilenYerler.remove(yer); else _secilenYerler.add(yer); }); },
-            child: Container(margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(color: selected ? Colors.white.withValues(alpha: 0.2) : Colors.white.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(14), border: Border.all(color: selected ? Colors.green : Colors.white.withValues(alpha: 0.15), width: selected ? 2 : 1)),
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 12), padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: selected ? const Color(0xFF5374FF).withValues(alpha: 0.08) : Colors.white, 
+                borderRadius: BorderRadius.circular(16), 
+                border: Border.all(color: selected ? const Color(0xFF5374FF) : Colors.transparent, width: 2),
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4))],
+              ),
               child: Row(children: [
-                if (selected) const Icon(Icons.check_circle, color: Colors.green, size: 22) else Icon(Icons.radio_button_off, color: Colors.white.withValues(alpha: 0.4), size: 22),
-                const SizedBox(width: 12),
+                if (selected) const Icon(Icons.check_circle, color: Color(0xFF5374FF), size: 24) 
+                else const Icon(Icons.radio_button_off, color: Color(0xFFCBD5E1), size: 24),
+                const SizedBox(width: 16),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(yer.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                  const SizedBox(height: 4),
-                  Text('${yer.address}  •  ⭐ ${yer.rating}', style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12)),
+                  Text(yer.name, style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 15)),
+                  const SizedBox(height: 6),
+                  Text('${yer.address}  •  ⭐ ${yer.rating}', style: const TextStyle(color: Color(0xFF64748B), fontSize: 13)),
                 ])),
               ])),
           );
         },
       )),
-      Padding(padding: const EdgeInsets.all(16), child: Row(children: [
-        Expanded(child: _buildBackButton()), const SizedBox(width: 12),
-        Expanded(child: _buildNextButton('Onayla (${_secilenYerler.length} yer)', () => setState(() => _currentStep = _totalSteps - 1))),
-      ])),
+      Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -4))]),
+        child: Row(children: [
+          Expanded(child: _buildBackButton()), const SizedBox(width: 12),
+          Expanded(child: _buildNextButton('Onayla (${_secilenYerler.length})', () => setState(() => _currentStep = _totalSteps - 1))),
+        ]),
+      ),
     ]);
   }
 
   Widget _buildConfirmStep() {
-    return SingleChildScrollView(padding: const EdgeInsets.all(20), child: Column(children: [
-      _buildStepIndicator(), const SizedBox(height: 24),
-      Container(width: double.infinity, padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Center(child: Icon(Icons.check_circle_outline, size: 48, color: Colors.green)),
-          const SizedBox(height: 16),
-          const Center(child: Text('Seyahat Planınız', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold))),
-          const SizedBox(height: 20),
-          _buildSummaryRow(Icons.flight, 'Rota', '${_kalkis?.code ?? ''} → ${_varis?.code ?? ''}'),
-          _buildSummaryRow(Icons.calendar_today, 'Gidiş', _formatDate(_gidisTarihi)),
-          if (_donusTarihi != null) _buildSummaryRow(Icons.calendar_today, 'Dönüş', _formatDate(_donusTarihi)),
-          if (_secilenGidisUcus != null) ...[
-            const Divider(color: Colors.white24, height: 20),
-            Text('✈️ Gidiş Uçuşu', style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 14, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 6),
-            _buildSummaryRow(Icons.airlines, 'Havayolu', '${_secilenGidisUcus!.airline} - ${_secilenGidisUcus!.flightNumber}'),
-            _buildSummaryRow(Icons.access_time, 'Saat', '${_secilenGidisUcus!.departureTime} → ${_secilenGidisUcus!.arrivalTime}'),
-            _buildSummaryRow(Icons.attach_money, 'Fiyat', '${_secilenGidisUcus!.priceTL.toStringAsFixed(0)} ₺'),
-          ],
-          if (_secilenDonusUcus != null) ...[
-            const Divider(color: Colors.white24, height: 20),
-            Text('✈️ Dönüş Uçuşu', style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 14, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 6),
-            _buildSummaryRow(Icons.airlines, 'Havayolu', '${_secilenDonusUcus!.airline} - ${_secilenDonusUcus!.flightNumber}'),
-            _buildSummaryRow(Icons.access_time, 'Saat', '${_secilenDonusUcus!.departureTime} → ${_secilenDonusUcus!.arrivalTime}'),
-            _buildSummaryRow(Icons.attach_money, 'Fiyat', '${_secilenDonusUcus!.priceTL.toStringAsFixed(0)} ₺'),
-          ],
-          if (_secilenOtel != null) ...[
-            const Divider(color: Colors.white24, height: 20),
-            Text('🏨 Otel', style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 14, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 6),
-            _buildSummaryRow(Icons.hotel, 'Otel Adı', _secilenOtel!.name),
-            if (_secilenOtel!.address.isNotEmpty)
-              _buildSummaryRow(Icons.location_on, 'Adres', _secilenOtel!.address),
-            _buildSummaryRow(Icons.star, 'Puan', '⭐ ${_secilenOtel!.rating.toStringAsFixed(1)}'),
-            if (_secilenOtel!.pricePerNight != null)
-              _buildSummaryRow(Icons.attach_money, 'Gecelik', '${_secilenOtel!.pricePerNight!.toStringAsFixed(0)} ₺'),
-          ],
-          if (_secilenYerler.isNotEmpty) ...[
-            const Divider(color: Colors.white24, height: 20),
-            Text('📍 Gezilecek Yerler (${_secilenYerler.length})', style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 14, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
-            ..._secilenYerler.map((y) => Padding(padding: const EdgeInsets.only(bottom: 4), child: Row(children: [
-              Icon(Icons.place, size: 14, color: Colors.white.withValues(alpha: 0.5)), const SizedBox(width: 8),
-              Expanded(child: Text(y.name, style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 13))),
-            ]))),
-          ],
-        ])),
-      const SizedBox(height: 24),
-      Row(children: [
-        Expanded(child: _buildBackButton()), const SizedBox(width: 12),
-        Expanded(flex: 2, child: _buildNextButton('Planı Kaydet', _savePlan)),
-      ]),
-    ]));
+    return Column(children: [
+      Expanded(child: SingleChildScrollView(padding: const EdgeInsets.all(20), child: Column(children: [
+        _buildStepIndicator(), const SizedBox(height: 24),
+        Container(width: double.infinity, padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 16, offset: const Offset(0, 6))]),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Center(child: Icon(Icons.check_circle_outline_rounded, size: 56, color: Colors.green)), const SizedBox(height: 16),
+            const Center(child: Text('Seyahat Planınız', style: TextStyle(color: Color(0xFF0F172A), fontSize: 22, fontWeight: FontWeight.w800))), const SizedBox(height: 24),
+            _buildSummaryRow(Icons.flight_takeoff_rounded, 'Rota', '${_kalkis?.code ?? ''} → ${_varis?.code ?? ''}'),
+            _buildSummaryRow(Icons.calendar_today_rounded, 'Gidiş', _formatDate(_gidisTarihi)),
+            if (_donusTarihi != null) _buildSummaryRow(Icons.calendar_today_rounded, 'Dönüş', _formatDate(_donusTarihi)),
+            if (_secilenGidisUcus != null) ...[
+              const Divider(color: Color(0xFFF1F5F9), height: 32, thickness: 1.5),
+              const Text('✈️ Gidiş Uçuşu', style: TextStyle(color: Color(0xFF0F172A), fontSize: 16, fontWeight: FontWeight.bold)), const SizedBox(height: 12),
+              _buildSummaryRow(Icons.airlines, 'Havayolu', '${_secilenGidisUcus!.airline} - ${_secilenGidisUcus!.flightNumber}'),
+              _buildSummaryRow(Icons.access_time_rounded, 'Saat', '${_secilenGidisUcus!.departureTime} → ${_secilenGidisUcus!.arrivalTime}'),
+              _buildSummaryRow(Icons.attach_money_rounded, 'Fiyat', '${_secilenGidisUcus!.priceTL.toStringAsFixed(0)} ₺'),
+            ],
+            if (_secilenDonusUcus != null) ...[
+              const Divider(color: Color(0xFFF1F5F9), height: 32, thickness: 1.5),
+              const Text('✈️ Dönüş Uçuşu', style: TextStyle(color: Color(0xFF0F172A), fontSize: 16, fontWeight: FontWeight.bold)), const SizedBox(height: 12),
+              _buildSummaryRow(Icons.airlines, 'Havayolu', '${_secilenDonusUcus!.airline} - ${_secilenDonusUcus!.flightNumber}'),
+              _buildSummaryRow(Icons.access_time_rounded, 'Saat', '${_secilenDonusUcus!.departureTime} → ${_secilenDonusUcus!.arrivalTime}'),
+              _buildSummaryRow(Icons.attach_money_rounded, 'Fiyat', '${_secilenDonusUcus!.priceTL.toStringAsFixed(0)} ₺'),
+            ],
+            if (_secilenOtel != null) ...[
+              const Divider(color: Color(0xFFF1F5F9), height: 32, thickness: 1.5),
+              const Text('🏨 Otel', style: TextStyle(color: Color(0xFF0F172A), fontSize: 16, fontWeight: FontWeight.bold)), const SizedBox(height: 12),
+              _buildSummaryRow(Icons.hotel_rounded, 'Otel Adı', _secilenOtel!.name),
+              if (_secilenOtel!.address.isNotEmpty) _buildSummaryRow(Icons.location_on_rounded, 'Adres', _secilenOtel!.address),
+              _buildSummaryRow(Icons.star_rounded, 'Puan', '⭐ ${_secilenOtel!.rating.toStringAsFixed(1)}'),
+              if (_secilenOtel!.pricePerNight != null) _buildSummaryRow(Icons.attach_money_rounded, 'Gecelik', '${_secilenOtel!.pricePerNight!.toStringAsFixed(0)} ₺'),
+            ],
+            if (_secilenYerler.isNotEmpty) ...[
+              const Divider(color: Color(0xFFF1F5F9), height: 32, thickness: 1.5),
+              Text('📍 Gezilecek Yerler (${_secilenYerler.length})', style: const TextStyle(color: Color(0xFF0F172A), fontSize: 16, fontWeight: FontWeight.bold)), const SizedBox(height: 12),
+              ..._secilenYerler.map((y) => Padding(padding: const EdgeInsets.only(bottom: 8), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Icon(Icons.place_rounded, size: 16, color: Color(0xFF64748B)), const SizedBox(width: 10),
+                Expanded(child: Text(y.name, style: const TextStyle(color: Color(0xFF334155), fontSize: 14))),
+              ]))),
+            ],
+          ])),
+      ]))),
+      Container(
+        padding: const EdgeInsets.all(20), decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -4))]),
+        child: Row(children: [
+          Expanded(child: _buildBackButton()), const SizedBox(width: 12),
+          Expanded(flex: 2, child: _buildNextButton('Planı Kaydet', _savePlan)),
+        ]),
+      ),
+    ]);
   }
 
   // ========== HELPERS ==========
   Widget _buildStepIndicator() {
     return Row(mainAxisAlignment: MainAxisAlignment.center, children: List.generate(_totalSteps, (i) {
       final active = i == _currentStep; final done = i < _currentStep;
-      return Container(width: active ? 28 : 10, height: 10, margin: const EdgeInsets.symmetric(horizontal: 3),
-        decoration: BoxDecoration(color: done ? Colors.green : (active ? Colors.white : Colors.white.withValues(alpha: 0.3)), borderRadius: BorderRadius.circular(5)));
+      return Container(width: active ? 28 : 10, height: 8, margin: const EdgeInsets.symmetric(horizontal: 4),
+        decoration: BoxDecoration(color: done ? Colors.green : (active ? const Color(0xFF5374FF) : const Color(0xFFE2E8F0)), borderRadius: BorderRadius.circular(4)));
     }));
   }
 
   Widget _buildNextButton(String label, VoidCallback onPressed) {
-    return SizedBox(height: 50, child: ElevatedButton(onPressed: onPressed,
-      style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: AppTheme.primaryColor, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
-      child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600))));
+    return SizedBox(height: 54, child: ElevatedButton(onPressed: onPressed,
+      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF5374FF), foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+      child: Text(label, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16))));
   }
 
   Widget _buildBackButton() {
-    return SizedBox(height: 50, child: OutlinedButton(
+    return SizedBox(height: 54, child: OutlinedButton(
       onPressed: () { if (_currentStep == 0) Navigator.pop(context); else setState(() => _currentStep--); },
-      style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: BorderSide(color: Colors.white.withValues(alpha: 0.4)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
-      child: const Text('Geri')));
+      style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF0F172A), side: const BorderSide(color: Color(0xFFCBD5E1), width: 1.5), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+      child: const Text('Geri', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16))));
   }
 
   Widget _buildDateButton(String label, DateTime? date, VoidCallback onTap) {
     return GestureDetector(onTap: onTap, child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white.withValues(alpha: 0.3))),
+      height: 64, padding: const EdgeInsets.symmetric(horizontal: 14), decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(12)),
       child: Row(children: [
-        Icon(Icons.calendar_today, size: 16, color: Colors.white.withValues(alpha: 0.7)), const SizedBox(width: 8),
-        Flexible(child: Text(date != null ? _formatDate(date) : label, style: TextStyle(color: Colors.white.withValues(alpha: date != null ? 1.0 : 0.5), fontSize: 12), overflow: TextOverflow.ellipsis)),
+        const Icon(Icons.calendar_today_rounded, size: 18, color: Color(0xFF64748B)), const SizedBox(width: 10),
+        Flexible(child: Text(date != null ? _formatDate(date) : label, style: TextStyle(color: date != null ? const Color(0xFF0F172A) : const Color(0xFF64748B), fontSize: 14, fontWeight: date != null ? FontWeight.w600 : FontWeight.normal), overflow: TextOverflow.ellipsis)),
       ])));
   }
 
   Widget _buildSummaryRow(IconData icon, String label, String value) {
-    return Padding(padding: const EdgeInsets.only(bottom: 10), child: Row(children: [
-      Icon(icon, size: 18, color: Colors.white.withValues(alpha: 0.6)), const SizedBox(width: 10),
-      Text('$label: ', style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13)),
-      Expanded(child: Text(value, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500))),
+    return Padding(padding: const EdgeInsets.only(bottom: 12), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Icon(icon, size: 20, color: const Color(0xFF64748B)), const SizedBox(width: 12),
+      SizedBox(width: 80, child: Text('$label: ', style: const TextStyle(color: Color(0xFF64748B), fontSize: 14))),
+      Expanded(child: Text(value, style: const TextStyle(color: Color(0xFF0F172A), fontSize: 14, fontWeight: FontWeight.w600))),
     ]));
   }
 
@@ -441,7 +491,23 @@ class _PlanWizardScreenState extends State<PlanWizardScreen> {
 
   // ========== ACTIONS ==========
   Future<void> _selectDate(bool isGidis) async {
-    final picked = await showDatePicker(context: context, initialDate: DateTime.now().add(const Duration(days: 7)), firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 365)));
+    final picked = await showDatePicker(
+      context: context, 
+      initialDate: isGidis ? (_gidisTarihi ?? DateTime.now().add(const Duration(days: 7))) : (_donusTarihi ?? _gidisTarihi?.add(const Duration(days: 1)) ?? DateTime.now().add(const Duration(days: 8))),
+      firstDate: DateTime.now(), 
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xFF5374FF),
+              brightness: Brightness.light,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
     if (picked != null) setState(() { if (isGidis) _gidisTarihi = picked; else _donusTarihi = picked; });
   }
 
@@ -526,67 +592,42 @@ class _PlanWizardScreenState extends State<PlanWizardScreen> {
 
   void _showSnack(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating, backgroundColor: const Color(0xFF1E293B), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))));
   }
 }
 
 class _SelectableHotelRow extends StatelessWidget {
-  final Hotel hotel;
-  final bool selected;
-  final VoidCallback onTap;
-
+  final Hotel hotel; final bool selected; final VoidCallback onTap;
   const _SelectableHotelRow({required this.hotel, required this.selected, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected ? Colors.white.withValues(alpha: 0.18) : Colors.white.withValues(alpha: 0.08),
-      borderRadius: BorderRadius.circular(16),
+      color: selected ? const Color(0xFF5374FF).withValues(alpha: 0.08) : Colors.white,
+      borderRadius: BorderRadius.circular(20),
       child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: SizedBox(
-                  width: 64,
-                  height: 64,
-                  child: hotel.imageUrl.isNotEmpty
-                      ? Image.network(
-                          hotel.imageUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const ColoredBox(
-                            color: Colors.white12,
-                            child: Icon(Icons.hotel, color: Colors.white70),
-                          ),
-                        )
-                      : const ColoredBox(
-                          color: Colors.white12,
-                          child: Icon(Icons.hotel, color: Colors.white70),
-                        ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(hotel.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 4),
-                    if (hotel.address.isNotEmpty)
-                      Text(hotel.address, style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12)),
-                    const SizedBox(height: 6),
-                    Text('⭐ ${hotel.rating.toStringAsFixed(1)}  •  ${hotel.pricePerNight?.toStringAsFixed(0) ?? '-'} ₺', style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 12)),
-                  ],
-                ),
-              ),
-              if (selected) const Icon(Icons.check_circle, color: Colors.green),
-            ],
-          ),
+        onTap: onTap, borderRadius: BorderRadius.circular(20),
+        child: Container(
+          decoration: BoxDecoration(border: Border.all(color: selected ? const Color(0xFF5374FF) : Colors.transparent, width: 2), borderRadius: BorderRadius.circular(20), boxShadow: selected ? [] : [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4))]),
+          padding: const EdgeInsets.all(16),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            ClipRRect(borderRadius: BorderRadius.circular(16), child: SizedBox(width: 80, height: 80,
+              child: hotel.imageUrl.isNotEmpty ? Image.network(hotel.imageUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const ColoredBox(color: Color(0xFFF1F5F9), child: Icon(Icons.hotel_rounded, color: Color(0xFF94A3B8))))
+              : const ColoredBox(color: Color(0xFFF1F5F9), child: Icon(Icons.hotel_rounded, color: Color(0xFF94A3B8)))
+            )),
+            const SizedBox(width: 16),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(hotel.name, style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 16)), const SizedBox(height: 6),
+              if (hotel.address.isNotEmpty) Text(hotel.address, style: const TextStyle(color: Color(0xFF64748B), fontSize: 13), maxLines: 2, overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 8),
+              Row(children: [
+                const Icon(Icons.star_rounded, size: 16, color: Colors.amber), const SizedBox(width: 4),
+                Text(hotel.rating.toStringAsFixed(1), style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w600, fontSize: 13)), const Spacer(),
+                if (hotel.pricePerNight != null) Text('${hotel.pricePerNight!.toStringAsFixed(0)} ₺', style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w800, fontSize: 15)),
+              ]),
+            ])),
+            if (selected) const Padding(padding: EdgeInsets.only(left: 8.0), child: Icon(Icons.check_circle, color: Color(0xFF5374FF))),
+          ]),
         ),
       ),
     );

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/tourist_place.dart';
 import '../services/places_service.dart';
 
@@ -25,7 +25,6 @@ class _PlacesScreenState extends State<PlacesScreen> {
   String? _secilenSehir;
   String? _secilenSehirAdi;
 
-  // Şehir listesi
   final List<Map<String, String>> _sehirler = [
     {'name': 'İstanbul', 'key': 'istanbul'},
     {'name': 'Ankara', 'key': 'ankara'},
@@ -33,16 +32,16 @@ class _PlacesScreenState extends State<PlacesScreen> {
     {'name': 'Antalya', 'key': 'antalya'},
     {'name': 'Muğla', 'key': 'muğla'},
     {'name': 'Trabzon', 'key': 'trabzon'},
-    {'name': 'Adana', 'key': 'adana'},
     {'name': 'Nevşehir', 'key': 'nevşehir'},
-    {'name': 'Gaziantep', 'key': 'gaziantep'},
-    {'name': 'Erzurum', 'key': 'erzurum'},
-    {'name': 'Samsun', 'key': 'samsun'},
     {'name': 'Bursa', 'key': 'bursa'},
-    {'name': 'Konya', 'key': 'konya'},
+    {'name': 'Gaziantep', 'key': 'gaziantep'},
     {'name': 'Mardin', 'key': 'mardin'},
     {'name': 'Edirne', 'key': 'edirne'},
     {'name': 'Çanakkale', 'key': 'çanakkale'},
+    {'name': 'Konya', 'key': 'konya'},
+    {'name': 'Denizli', 'key': 'denizli'},
+    {'name': 'Adana', 'key': 'adana'},
+    {'name': 'Samsun', 'key': 'samsun'},
   ];
 
   @override
@@ -57,28 +56,22 @@ class _PlacesScreenState extends State<PlacesScreen> {
 
   Future<void> _yerleriGetir() async {
     if (_secilenSehir == null) return;
-    
+
     setState(() {
       _yukleniyor = true;
       _hata = null;
     });
 
     try {
-      final places = await _placesService.getNearbyPlaces(
-        city: _secilenSehir!,
-      );
-      // 3 puan üzeri filtrele ve skor indeksine göre sırala
-      // Skor = rating * log(userRatingsTotal) - hem puanı hem popülerliği dikkate alır
-      final filteredPlaces = places
-          .where((p) => p.rating >= 3.0)
-          .toList()
+      final places = await _placesService.getNearbyPlaces(city: _secilenSehir!);
+      final filteredPlaces = places.where((p) => p.rating >= 3.0).toList()
         ..sort((a, b) {
           final scoreA = a.rating * _logScale(a.userRatingsTotal);
           final scoreB = b.rating * _logScale(b.userRatingsTotal);
           return scoreB.compareTo(scoreA);
         });
       setState(() {
-        _places = filteredPlaces.take(10).toList();
+        _places = filteredPlaces;
         _yukleniyor = false;
       });
     } catch (e) {
@@ -94,6 +87,18 @@ class _PlacesScreenState extends State<PlacesScreen> {
     return 1 + (value.toDouble()).clamp(1, 999999).toDouble() / 1000;
   }
 
+  void _openMapForAll() {
+    if (_places == null || _places!.isEmpty || _secilenSehirAdi == null) return;
+    final query = Uri.encodeComponent('turistik yerler $_secilenSehirAdi');
+    final url = 'https://www.google.com/maps/search/$query';
+    launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+  }
+
+  void _openMapForPlace(TouristPlace place) {
+    final url = 'https://www.google.com/maps/search/?api=1&query=${place.latitude},${place.longitude}&query_place_id=${Uri.encodeComponent(place.name)}';
+    launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+  }
+
   @override
   void dispose() {
     _placesService.dispose();
@@ -102,663 +107,471 @@ class _PlacesScreenState extends State<PlacesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final baslik = _secilenSehirAdi ?? 'Gezilecek Yerler';
     return Scaffold(
-      appBar: AppBar(
-        title: Text(baslik),
-        centerTitle: true,
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: AppTheme.backgroundGradient,
-        ),
-        child: SafeArea(
-          child: _buildBody(),
+      backgroundColor: const Color(0xFFF8FAFC),
+      // Map FAB
+      floatingActionButton: (_places != null && _places!.isNotEmpty)
+          ? FloatingActionButton.extended(
+              onPressed: _openMapForAll,
+              backgroundColor: const Color(0xFF5374FF),
+              foregroundColor: Colors.white,
+              elevation: 4,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              icon: const Icon(Icons.map_rounded, size: 20),
+              label: const Text('Haritada Gör', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+            )
+          : null,
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Back button (only when pushed)
+                  if (Navigator.canPop(context)) ...[
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        margin: const EdgeInsets.only(right: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.arrow_back_rounded, size: 20, color: Color(0xFF0F172A)),
+                      ),
+                    ),
+                  ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Gezilecek Yerler',
+                          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Keşfet, gez, unutulmaz anılar biriktir.',
+                          style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Map icon button
+                  if (_places != null && _places!.isNotEmpty)
+                    GestureDetector(
+                      onTap: _openMapForAll,
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.map_outlined, size: 22, color: Color(0xFF0F172A)),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // City selector
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: GestureDetector(
+                onTap: _showCityPicker,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.03),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF5374FF).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.location_on_rounded, size: 20, color: Color(0xFF5374FF)),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Konum Seçin', style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
+                            const SizedBox(height: 2),
+                            Text(
+                              _secilenSehirAdi != null ? '$_secilenSehirAdi, Türkiye' : 'Şehir seçin',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: _secilenSehirAdi != null ? FontWeight.w700 : FontWeight.w400,
+                                color: _secilenSehirAdi != null ? const Color(0xFF0F172A) : const Color(0xFF94A3B8),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF94A3B8)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Search button
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: SizedBox(
+                width: double.infinity,
+                height: 46,
+                child: ElevatedButton.icon(
+                  onPressed: _secilenSehir != null ? _yerleriGetir : null,
+                  icon: const Icon(Icons.search_rounded, size: 20),
+                  label: const Text('Yerleri Keşfet', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF5374FF),
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: const Color(0xFFE2E8F0),
+                    disabledForegroundColor: const Color(0xFF94A3B8),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Results
+            Expanded(child: _buildContent()),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildBody() {
-    // Eğer şehir seçilmemişse şehir seçme ekranını göster
-    if (_secilenSehir == null) {
-      return _buildCitySelection();
+  Widget _buildContent() {
+    if (_yukleniyor) {
+      return const Center(child: CircularProgressIndicator(color: Color(0xFF5374FF)));
     }
 
-    if (_yukleniyor) {
+    if (_hata != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline_rounded, size: 48, color: Color(0xFFEF4444)),
+              const SizedBox(height: 12),
+              const Text('Yerler yüklenirken hata oluştu', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _yerleriGetir,
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF5374FF), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                child: const Text('Tekrar Dene'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_places == null) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(40),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.explore_rounded, size: 56, color: Color(0xFF94A3B8)),
+              SizedBox(height: 12),
+              Text('Bir şehir seçerek keşfe başla', style: TextStyle(fontSize: 14, color: Color(0xFF94A3B8))),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_places!.isEmpty) {
       return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(color: Colors.white),
-            SizedBox(height: 16),
-            Text(
-              'Turistik yerler aranıyor...',
-              style: TextStyle(color: Colors.white, fontSize: 16),
-            ),
+            Icon(Icons.explore_off_rounded, size: 48, color: Color(0xFF94A3B8)),
+            SizedBox(height: 12),
+            Text('Turistik yer bulunamadı', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
           ],
         ),
       );
     }
 
-    if (_hata != null) {
-      return _buildErrorView();
-    }
-
-    if (_places == null || _places!.isEmpty) {
-      return _buildEmptyView();
-    }
-
-    return _buildPlacesList();
-  }
-
-  Widget _buildCitySelection() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 20),
-          Center(
-            child: Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Icon(
-                    Icons.explore,
-                    size: 56,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Gezilecek Yerler',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Bir şehir seçin, o şehirdeki turistik\n yerleri keşfedin',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.white.withValues(alpha: 0.7),
-                  ),
-                ),
-              ],
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Results header
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(
+            children: [
+              const Text('Önerilen Yerler', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
+              const SizedBox(width: 8),
+              Text('${_places!.length} sonuç', style: const TextStyle(fontSize: 13, color: Color(0xFF5374FF), fontWeight: FontWeight.w600)),
+            ],
           ),
-          const SizedBox(height: 24),
-          const Text(
-            'Popüler Şehirler',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
+        ),
+        const SizedBox(height: 12),
+        // Place list
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
+            itemCount: _places!.length,
+            itemBuilder: (context, index) => _buildPlaceCard(_places![index]),
           ),
-          const SizedBox(height: 12),
-          ...List.generate(_sehirler.length, (index) {
-            final sehir = _sehirler[index];
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Material(
-                color: Colors.white.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(14),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(14),
-                  onTap: () {
-                    setState(() {
-                      _secilenSehir = sehir['key'];
-                      _secilenSehirAdi = sehir['name'];
-                    });
-                    _yerleriGetir();
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.all(14),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryColor.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Center(
-                            child: Text(
-                              '${index + 1}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Text(
-                            sehir['name']!,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                        Icon(
-                          Icons.arrow_forward_ios,
-                          size: 14,
-                          color: Colors.white.withValues(alpha: 0.4),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPlacesList() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Başlık
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.explore, color: Colors.white, size: 28),
-                    const SizedBox(width: 8),
-                    Text(
-                      _secilenSehirAdi ?? 'Gezilecek Yerler',
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '${_places!.length} turistik yer bulundu',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Yer kartları
-          ...List.generate(_places!.length, (index) {
-            return _buildPlaceCard(_places![index]);
-          }),
-
-          const SizedBox(height: 16),
-
-          // Bilgi notu
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.15),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.info_outline,
-                    size: 16, color: Colors.white.withValues(alpha: 0.5)),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Bilgiler Google Places verilerine dayanmaktadır. '
-                    'Güncel durum için mekanın kendi sayfasını ziyaret edin.',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.5),
-                      fontSize: 11,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _buildPlaceCard(TouristPlace place) {
-    // Puan rengi
-    final ratingColor = place.rating >= 4.5
-        ? Colors.green
-        : place.rating >= 4.0
-            ? Colors.lightGreen
-            : place.rating >= 3.5
-                ? Colors.orange
-                : Colors.red;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Material(
-        color: Colors.white.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
+    return GestureDetector(
+      onTap: () => _openMapForPlace(place),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          onTap: () => _yerDetayGoster(place),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Üst kısım: İsim ve puan
-                Row(
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Photo
+            ClipRRect(
+              borderRadius: const BorderRadius.horizontal(left: Radius.circular(16)),
+              child: SizedBox(
+                width: 110,
+                height: 120,
+                child: place.photoUrl.isNotEmpty
+                    ? Image.network(
+                        place.photoUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          color: const Color(0xFFF1F5F9),
+                          child: const Icon(Icons.image_rounded, color: Color(0xFF94A3B8), size: 32),
+                        ),
+                      )
+                    : Container(
+                        color: const Color(0xFFF1F5F9),
+                        child: const Icon(Icons.place_rounded, color: Color(0xFF94A3B8), size: 32),
+                      ),
+              ),
+            ),
+            // Info
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Sol taraftaki ikon
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryColor.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        _getPlaceIcon(place.types),
-                        color: Colors.white,
-                        size: 24,
-                      ),
+                    // Name
+                    Text(
+                      place.name,
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(width: 12),
-
-                    // İsim ve adres
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            place.name,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              fontSize: 15,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            place.address,
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.6),
-                              fontSize: 12,
-                            ),
+                    const SizedBox(height: 4),
+                    // Address
+                    Row(
+                      children: [
+                        const Icon(Icons.location_on_rounded, size: 13, color: Color(0xFF94A3B8)),
+                        const SizedBox(width: 3),
+                        Expanded(
+                          child: Text(
+                            place.address.isNotEmpty ? place.address : _secilenSehirAdi ?? '',
+                            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                        ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    // Category label
+                    Text(
+                      place.categoryLabel,
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF64748B), height: 1.3),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 8),
+                    // Rating + time estimate
+                    Row(
+                      children: [
+                        const Icon(Icons.star_rounded, size: 16, color: Color(0xFFFBBF24)),
+                        const SizedBox(width: 3),
+                        Text(
+                          '${place.rating.toStringAsFixed(1)} (${_formatCount(place.userRatingsTotal)})',
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                        ),
+                        const SizedBox(width: 12),
+                        const Icon(Icons.access_time_rounded, size: 14, color: Color(0xFF94A3B8)),
+                        const SizedBox(width: 3),
+                        Text(
+                          _estimateTime(place),
+                          style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatCount(int count) {
+    if (count >= 1000) return '${(count / 1000).toStringAsFixed(1)}K';
+    return count.toString();
+  }
+
+  String _estimateTime(TouristPlace place) {
+    if (place.types.contains('museum') || place.types.contains('art_gallery')) return '1-2 saat';
+    if (place.types.contains('park') || place.types.contains('natural_feature')) return '1-3 saat';
+    if (place.types.contains('shopping_mall')) return '2-3 saat';
+    if (place.types.contains('mosque') || place.types.contains('church')) return '30 dk';
+    return '1-2 saat';
+  }
+
+  void _showCityPicker() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      isScrollControlled: true,
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.6,
+          maxChildSize: 0.85,
+          minChildSize: 0.4,
+          expand: false,
+          builder: (context, scrollController) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE2E8F0),
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
-
-                    // Puan
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: ratingColor.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                            color: ratingColor.withValues(alpha: 0.5)),
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.star, size: 14, color: Colors.amber),
-                              const SizedBox(width: 4),
-                              Text(
-                                place.rating.toStringAsFixed(1),
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: ratingColor,
-                                  fontSize: 14,
-                                ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Konum Seçin',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Keşfetmek istediğiniz şehri seçin',
+                    style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                  ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: ListView.builder(
+                      controller: scrollController,
+                      itemCount: _sehirler.length,
+                      itemBuilder: (context, index) {
+                        final sehir = _sehirler[index];
+                        final isSelected = _secilenSehir == sehir['key'];
+                        return GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _secilenSehir = sehir['key'];
+                              _secilenSehirAdi = sehir['name'];
+                              _places = null;
+                            });
+                            Navigator.pop(context);
+                            _yerleriGetir();
+                          },
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            decoration: BoxDecoration(
+                              color: isSelected ? const Color(0xFF5374FF).withValues(alpha: 0.08) : const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isSelected ? const Color(0xFF5374FF).withValues(alpha: 0.3) : const Color(0xFFF1F5F9),
                               ),
-                            ],
-                          ),
-                          Text(
-                            _formatPuan(place.userRatingsTotal),
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.white.withValues(alpha: 0.6),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.location_city_rounded,
+                                  size: 20,
+                                  color: isSelected ? const Color(0xFF5374FF) : const Color(0xFF64748B),
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  sehir['name']!,
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                    color: isSelected ? const Color(0xFF5374FF) : const Color(0xFF0F172A),
+                                  ),
+                                ),
+                                const Spacer(),
+                                if (isSelected)
+                                  const Icon(Icons.check_circle_rounded, size: 20, color: Color(0xFF5374FF)),
+                              ],
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 12),
-
-                // Alt kısım: Kategori, fiyat, durum
-                Row(
-                  children: [
-                    // Kategori etiketi
-                    _buildTag(
-                      icon: _getPlaceIcon(place.types),
-                      label: place.categoryLabel,
-                    ),
-                    const SizedBox(width: 8),
-
-                    // Fiyat etiketi
-                    if (place.priceLabel.isNotEmpty)
-                      _buildTag(
-                        icon: Icons.attach_money,
-                        label: place.priceLabel,
-                      ),
-
-                    const Spacer(),
-
-                    // Açık/Kapalı durumu
-                    if (place.openNow != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: (place.openNow!
-                                  ? Colors.green
-                                  : Colors.red)
-                              .withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          place.openNow! ? 'Açık' : 'Kapalı',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: place.openNow!
-                                ? Colors.green.shade300
-                                : Colors.red.shade300,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTag({required IconData icon, required String label}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: Colors.white.withValues(alpha: 0.7)),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              color: Colors.white.withValues(alpha: 0.7),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  IconData _getPlaceIcon(List<String> types) {
-    if (types.contains('museum') || types.contains('art_gallery')) {
-      return Icons.museum;
-    }
-    if (types.contains('mosque') ||
-        types.contains('church') ||
-        types.contains('synagogue') ||
-        types.contains('hindu_temple')) {
-      return Icons.temple_buddhist;
-    }
-    if (types.contains('park') || types.contains('natural_feature')) {
-      return Icons.nature;
-    }
-    if (types.contains('historical_place') || types.contains('landmark')) {
-      return Icons.account_balance;
-    }
-    if (types.contains('amusement_park') || types.contains('zoo') || types.contains('aquarium')) {
-      return Icons.celebration;
-    }
-    if (types.contains('shopping_mall')) {
-      return Icons.shopping_bag;
-    }
-    return Icons.place;
-  }
-
-  Widget _buildErrorView() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline,
-                size: 64, color: Colors.white.withValues(alpha: 0.7)),
-            const SizedBox(height: 16),
-            const Text(
-              'Yerler yüklenirken hata oluştu!',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Sunucuya bağlanılamadı. Backend\'in çalıştığından emin olun.',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: _yerleriGetir,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Tekrar Dene'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: AppTheme.primaryColor,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmptyView() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.explore_off, size: 64, color: Colors.white70),
-          const SizedBox(height: 16),
-          const Text(
-            'Bu şehirde turistik yer bulunamadı',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.arrow_back),
-            label: const Text('Geri Dön'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: AppTheme.primaryColor,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _yerDetayGoster(TouristPlace place) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Icon(_getPlaceIcon(place.types),
-                color: AppTheme.primaryColor, size: 24),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                place.name,
-                style: const TextStyle(fontSize: 18),
-              ),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Adres
-            Row(
-              children: [
-                Icon(Icons.location_on,
-                    size: 18, color: Colors.grey.shade600),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    place.address,
-                    style: TextStyle(color: Colors.grey.shade700),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // Puan
-            Row(
-              children: [
-                const Icon(Icons.star, size: 18, color: Colors.amber),
-                const SizedBox(width: 8),
-                Text(
-                  '${place.rating.toStringAsFixed(1)} (${_formatPuan(place.userRatingsTotal)} değerlendirme)',
-                  style: TextStyle(color: Colors.grey.shade700),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // Kategori
-            Row(
-              children: [
-                Icon(Icons.category,
-                    size: 18, color: Colors.grey.shade600),
-                const SizedBox(width: 8),
-                Text(
-                  place.categoryLabel,
-                  style: TextStyle(color: Colors.grey.shade700),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // Fiyat
-            Row(
-              children: [
-                Icon(Icons.attach_money,
-                    size: 18, color: Colors.grey.shade600),
-                const SizedBox(width: 8),
-                Text(
-                  place.priceLabel.isEmpty ? 'Ücretsiz' : place.priceLabel,
-                  style: TextStyle(color: Colors.grey.shade700),
-                ),
-              ],
-            ),
-            if (place.openNow != null) ...[
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Icon(
-                    place.openNow! ? Icons.check_circle : Icons.cancel,
-                    size: 18,
-                    color: place.openNow! ? Colors.green : Colors.red,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    place.openNow! ? 'Şu an açık' : 'Şu an kapalı',
-                    style: TextStyle(
-                      color: place.openNow! ? Colors.green : Colors.red,
-                      fontWeight: FontWeight.w600,
+                        );
+                      },
                     ),
                   ),
                 ],
               ),
-            ],
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Kapat'),
-          ),
-        ],
-      ),
+            );
+          },
+        );
+      },
     );
-  }
-
-  String _formatPuan(int sayi) {
-    if (sayi >= 1000000) {
-      return '${(sayi / 1000000).toStringAsFixed(1)}M';
-    }
-    if (sayi >= 1000) {
-      return '${(sayi / 1000).toStringAsFixed(1)}K';
-    }
-    return sayi.toString();
   }
 }

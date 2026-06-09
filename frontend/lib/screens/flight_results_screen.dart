@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
 import '../models/airport.dart';
 import '../models/flight_offer.dart';
 import '../services/flight_service.dart';
-import '../helpers/date_helper.dart';
 
 class FlightResultsScreen extends StatefulWidget {
   final Airport kalkis;
@@ -23,22 +21,27 @@ class FlightResultsScreen extends StatefulWidget {
   State<FlightResultsScreen> createState() => _FlightResultsScreenState();
 }
 
-class _FlightResultsScreenState extends State<FlightResultsScreen>
-    with SingleTickerProviderStateMixin {
+class _FlightResultsScreenState extends State<FlightResultsScreen> {
   final FlightService _flightService = FlightService();
   List<FlightOffer>? _gidisUcuslari;
   List<FlightOffer>? _donusUcuslari;
   bool _yukleniyor = true;
   String? _hata;
-  late TabController _tabController;
-  String _siralama = 'zaman'; // 'zaman', 'fiyat_artan', 'fiyat_azalan'
+  int _selectedTab = 0; // 0: Gidiş, 1: Dönüş
+  String _siralama = 'fiyat_artan';
 
   bool get _donusVar => widget.donusTarihi != null;
+
+  static const _gunler = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
+  static const _aylar = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
+
+  String _formatTarihKisa(DateTime date) {
+    return '${date.day} ${_aylar[date.month - 1]} ${date.year} ${_gunler[date.weekday - 1]}';
+  }
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: _donusVar ? 2 : 1, vsync: this);
     _ucuslariGetir();
   }
 
@@ -80,70 +83,125 @@ class _FlightResultsScreenState extends State<FlightResultsScreen>
   @override
   void dispose() {
     _flightService.dispose();
-    _tabController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('${widget.kalkis.code} → ${widget.varis.code}'),
-        centerTitle: true,
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        bottom: _donusVar
-            ? PreferredSize(
-                preferredSize: const Size.fromHeight(48),
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Header
+            _buildHeader(),
+            // Content
+            Expanded(child: _buildBody()),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Back + Route
+          Row(
+            children: [
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
                 child: Container(
-                  color: AppTheme.surfaceColor,
-                  child: TabBar(
-                    controller: _tabController,
-                    labelColor: Colors.white,
-                    unselectedLabelColor: Colors.white.withValues(alpha: 0.6),
-                    indicatorColor: Colors.white,
-                    indicatorWeight: 3,
-                    tabs: [
-                      Tab(
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.flight_takeoff, size: 18),
-                            const SizedBox(width: 6),
-                            Text('Gidiş\n${DateHelper.formatDate(widget.gidisTarihi).split(' ').take(2).join(' ')}',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          ],
-                        ),
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.arrow_back_rounded, size: 20, color: Color(0xFF0F172A)),
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Route pill
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.flight_takeoff_rounded, size: 16, color: Color(0xFF5374FF)),
+                      const SizedBox(width: 8),
+                      Text(
+                        widget.kalkis.city,
+                        style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
                       ),
-                      Tab(
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.flight_land, size: 18),
-                            const SizedBox(width: 6),
-                            Text('Dönüş\n${DateHelper.formatDate(widget.donusTarihi).split(' ').take(2).join(' ')}',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          ],
-                        ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 10),
+                        child: Icon(Icons.arrow_forward_rounded, size: 16, color: Color(0xFF94A3B8)),
+                      ),
+                      Text(
+                        widget.varis.city,
+                        style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
                       ),
                     ],
                   ),
                 ),
-              )
-            : null,
-      ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: AppTheme.backgroundGradient,
-        ),
-        child: SafeArea(
-          child: _buildBody(),
-        ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Date info
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.calendar_today_rounded, size: 16, color: Color(0xFF5374FF)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _formatTarihKisa(widget.gidisTarihi),
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (_donusVar) ...[
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 6),
+                    child: Text('|', style: TextStyle(color: Color(0xFFE2E8F0))),
+                  ),
+                  Expanded(
+                    child: Text(
+                      _formatTarihKisa(widget.donusTarihi!),
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -154,12 +212,9 @@ class _FlightResultsScreenState extends State<FlightResultsScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(color: Colors.white),
+            CircularProgressIndicator(color: Color(0xFF5374FF)),
             SizedBox(height: 16),
-            Text(
-              'Uçuşlar aranıyor...',
-              style: TextStyle(color: Colors.white, fontSize: 16),
-            ),
+            Text('Uçuşlar aranıyor...', style: TextStyle(color: Color(0xFF64748B), fontSize: 15)),
           ],
         ),
       );
@@ -169,78 +224,106 @@ class _FlightResultsScreenState extends State<FlightResultsScreen>
       return _buildErrorView();
     }
 
-    if (_donusVar) {
-      return TabBarView(
-        controller: _tabController,
-        children: [
-          _buildFlightList(_gidisUcuslari, isReturn: false),
-          _buildFlightList(_donusUcuslari, isReturn: true),
-        ],
-      );
-    }
-
-    return _buildFlightList(_gidisUcuslari, isReturn: false);
+    return Column(
+      children: [
+        // Tabs (Gidiş / Dönüş) + Sort
+        if (_donusVar) _buildTabs(),
+        _buildSortBar(),
+        // Flight list
+        Expanded(
+          child: _selectedTab == 0
+              ? _buildFlightList(_gidisUcuslari)
+              : _buildFlightList(_donusUcuslari),
+        ),
+      ],
+    );
   }
 
-  Widget _buildFlightList(List<FlightOffer>? ucuslar, {required bool isReturn}) {
-    if (ucuslar == null || ucuslar.isEmpty) {
-      return _buildEmptyView();
-    }
-
-    // Sıralama uygula
-    final siraliUcuslar = List<FlightOffer>.from(ucuslar);
-    switch (_siralama) {
-      case 'fiyat_artan':
-        siraliUcuslar.sort((a, b) => a.priceTL.compareTo(b.priceTL));
-        break;
-      case 'fiyat_azalan':
-        siraliUcuslar.sort((a, b) => b.priceTL.compareTo(a.priceTL));
-        break;
-      case 'zaman':
-      default:
-        siraliUcuslar.sort((a, b) => a.departureTime.compareTo(b.departureTime));
-        break;
-    }
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildTabs() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
         children: [
-          _buildRouteHeader(ucuslar, isReturn),
-          const SizedBox(height: 12),
-          _buildSortOptions(),
-          const SizedBox(height: 12),
-          ...List.generate(siraliUcuslar.length, (index) {
-            return _buildFlightCard(siraliUcuslar[index], ucuslar, index);
-          }),
-          const SizedBox(height: 16),
-          // Uyarı metni
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.15),
-              ),
+          Expanded(child: _buildTab('Gidiş', 0)),
+          Expanded(child: _buildTab('Dönüş', 1)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTab(String label, int index) {
+    final selected = _selectedTab == index;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedTab = index),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFF5374FF) : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
+              color: selected ? Colors.white : const Color(0xFF64748B),
             ),
-            child: Row(
-              children: [
-                Icon(Icons.info_outline, size: 16, color: Colors.white.withValues(alpha: 0.5)),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Fiyatlar SerpAPI üzerinden Google Flights verilerine dayanmaktadır.',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.5),
-                      fontSize: 11,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                ),
-              ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSortBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Row(
+        children: [
+          const Icon(Icons.filter_list_rounded, size: 18, color: Color(0xFF64748B)),
+          const SizedBox(width: 6),
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _siralama = _siralama == 'fiyat_artan' ? 'fiyat_azalan' : 'fiyat_artan';
+              });
+            },
+            child: Text(
+              _siralama == 'fiyat_artan' ? 'Ucuzdan Pahalıya' : 'Pahalıdan Ucuza',
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+            ),
+          ),
+          const Spacer(),
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                if (_siralama == 'fiyat_artan') {
+                  _siralama = 'fiyat_azalan';
+                } else if (_siralama == 'fiyat_azalan') {
+                  _siralama = 'zaman';
+                } else {
+                  _siralama = 'fiyat_artan';
+                }
+              });
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.tune_rounded, size: 16, color: Color(0xFF64748B)),
+                  SizedBox(width: 4),
+                  Text('Filtrele', style: TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                ],
+              ),
             ),
           ),
         ],
@@ -248,52 +331,193 @@ class _FlightResultsScreenState extends State<FlightResultsScreen>
     );
   }
 
-  Widget _buildSortOptions() {
-    return Row(
-      children: [
-        _buildSortChip('Saat', 'zaman', Icons.access_time),
-        const SizedBox(width: 8),
-        _buildSortChip('Ucuz', 'fiyat_artan', Icons.arrow_upward),
-        const SizedBox(width: 8),
-        _buildSortChip('Pahalı', 'fiyat_azalan', Icons.arrow_downward),
-      ],
+  Widget _buildFlightList(List<FlightOffer>? ucuslar) {
+    if (ucuslar == null || ucuslar.isEmpty) {
+      return _buildEmptyView();
+    }
+
+    final sirali = List<FlightOffer>.from(ucuslar);
+    switch (_siralama) {
+      case 'fiyat_artan':
+        sirali.sort((a, b) => a.priceTL.compareTo(b.priceTL));
+        break;
+      case 'fiyat_azalan':
+        sirali.sort((a, b) => b.priceTL.compareTo(a.priceTL));
+        break;
+      case 'zaman':
+      default:
+        sirali.sort((a, b) => a.departureTime.compareTo(b.departureTime));
+        break;
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
+      itemCount: sirali.length,
+      itemBuilder: (context, index) => _buildFlightCard(sirali[index]),
     );
   }
 
-  Widget _buildSortChip(String label, String value, IconData icon) {
-    final selected = _siralama == value;
-    return GestureDetector(
-      onTap: () {
-        setState(() => _siralama = value);
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: selected
-              ? Colors.white.withValues(alpha: 0.25)
-              : Colors.white.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: selected
-                ? Colors.white.withValues(alpha: 0.6)
-                : Colors.white.withValues(alpha: 0.2),
+  Widget _buildFlightCard(FlightOffer ucus) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFF1F5F9)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 14, color: Colors.white.withValues(alpha: selected ? 1.0 : 0.6)),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-                color: Colors.white.withValues(alpha: selected ? 1.0 : 0.6),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Flight info row
+          Row(
+            children: [
+              // Airline logo placeholder
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Center(
+                  child: Text(
+                    ucus.airline.substring(0, ucus.airline.length > 2 ? 2 : ucus.airline.length).toUpperCase(),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12,
+                      color: Color(0xFF5374FF),
+                    ),
+                  ),
+                ),
               ),
+              const SizedBox(width: 12),
+              // Departure
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        ucus.departureAirport,
+                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF0F172A)),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.flight_rounded, size: 14, color: Color(0xFF94A3B8)),
+                    ],
+                  ),
+                  Text(
+                    ucus.departureTime,
+                    style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 8),
+              // Duration line
+              Expanded(
+                child: Column(
+                  children: [
+                    Text(
+                      ucus.duration,
+                      style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                    ),
+                    Container(
+                      height: 1,
+                      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                      color: const Color(0xFFE2E8F0),
+                    ),
+                    if (ucus.stops > 0)
+                      Text(
+                        '${ucus.stops} Aktarma',
+                        style: const TextStyle(fontSize: 10, color: Color(0xFFEF4444), fontWeight: FontWeight.w600),
+                      )
+                    else
+                      const Text(
+                        'Direkt',
+                        style: TextStyle(fontSize: 10, color: Color(0xFF10B981), fontWeight: FontWeight.w600),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Arrival
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    ucus.arrivalAirport,
+                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF0F172A)),
+                  ),
+                  Text(
+                    ucus.arrivalTime,
+                    style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 12),
+              // Price
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '₺${ucus.priceTL.toStringAsFixed(0)}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 18,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'Kişi Başı',
+                        style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                      ),
+                      const SizedBox(width: 2),
+                      const Icon(Icons.chevron_right_rounded, size: 14, color: Color(0xFF94A3B8)),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Airline name row
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(10),
             ),
-          ],
-        ),
+            child: Row(
+              children: [
+                Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF5374FF).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Icon(Icons.airlines_rounded, size: 14, color: Color(0xFF5374FF)),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  ucus.airline,
+                  style: const TextStyle(fontSize: 13, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                ),
+                const Spacer(),
+                const Icon(Icons.chevron_right_rounded, size: 18, color: Color(0xFF94A3B8)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -305,32 +529,27 @@ class _FlightResultsScreenState extends State<FlightResultsScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 64, color: Colors.white.withValues(alpha: 0.7)),
+            const Icon(Icons.error_outline_rounded, size: 56, color: Color(0xFFEF4444)),
             const SizedBox(height: 16),
             const Text(
-              'Uçuşlar yüklenirken hata oluştu!',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
+              'Uçuşlar yüklenirken hata oluştu',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
             ),
             const SizedBox(height: 8),
-            Text(
-              _hata!.contains('API')
-                  ? 'API bağlantı hatası. Backend sunucusunu kontrol edin.'
-                  : 'Sunucuya bağlanılamadı. İnternet bağlantınızı kontrol edin.',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+            const Text(
+              'Sunucuya bağlanılamadı. Lütfen tekrar deneyin.',
+              style: TextStyle(color: Color(0xFF64748B), fontSize: 14),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: _ucuslariGetir,
-              icon: const Icon(Icons.refresh),
+              icon: const Icon(Icons.refresh_rounded),
               label: const Text('Tekrar Dene'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: AppTheme.primaryColor,
+                backgroundColor: const Color(0xFF5374FF),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ],
@@ -344,289 +563,22 @@ class _FlightResultsScreenState extends State<FlightResultsScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.flight_takeoff, size: 64, color: Colors.white70),
+          const Icon(Icons.flight_takeoff_rounded, size: 56, color: Color(0xFF94A3B8)),
           const SizedBox(height: 16),
           const Text(
             'Bu rotada uçuş bulunamadı',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
           ),
           const SizedBox(height: 24),
           ElevatedButton.icon(
             onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.arrow_back),
+            icon: const Icon(Icons.arrow_back_rounded),
             label: const Text('Geri Dön'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: AppTheme.primaryColor,
+              backgroundColor: const Color(0xFF5374FF),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRouteHeader(List<FlightOffer> ucuslar, bool isReturn) {
-    final varisKodu = isReturn ? widget.kalkis.code : widget.varis.code;
-    final kalkisKodu = isReturn ? widget.varis.code : widget.kalkis.code;
-    final tarih = isReturn ? widget.donusTarihi! : widget.gidisTarihi;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                kalkisKodu,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Icon(
-                  isReturn ? Icons.flight_land : Icons.flight,
-                  size: 28,
-                  color: Colors.white.withValues(alpha: 0.7),
-                ),
-              ),
-              Text(
-                varisKodu,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '${ucuslar.length} uçuş bulundu • ${DateHelper.formatDate(tarih)}',
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFlightCard(FlightOffer ucus, List<FlightOffer> liste, int index) {
-    // Fiyat rengini tüm listedeki min/max fiyata göre hesapla
-    final minPrice = liste.map((f) => f.priceTL).reduce((a, b) => a < b ? a : b);
-    final maxPrice = liste.map((f) => f.priceTL).reduce((a, b) => a > b ? a : b);
-    final fiyatOran = maxPrice > minPrice
-        ? (ucus.priceTL - minPrice) / (maxPrice - minPrice)
-        : 0.0;
-    final renk = Color.lerp(
-      Colors.green,
-      Colors.red,
-      fiyatOran.clamp(0.0, 1.0),
-    )!;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Material(
-        color: Colors.white.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () => _ucuSec(ucus),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                ucus.airline,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                  fontSize: 15,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  'Uçuş ${ucus.flightNumber}',
-                                  style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.6),
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: renk.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: renk.withValues(alpha: 0.5)),
-                      ),
-                      child: Text(
-                        '${ucus.priceTL.toStringAsFixed(0)} ₺',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: renk,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildTimeColumn(
-                        time: ucus.departureTime,
-                        airport: ucus.departureAirport,
-                        label: 'Kalkış',
-                      ),
-                    ),
-                    Expanded(
-                      flex: 2,
-                      child: Column(
-                        children: [
-                          Text(
-                            ucus.duration,
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.6),
-                              fontSize: 12,
-                            ),
-                          ),
-                          Container(
-                            height: 2,
-                            margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  Colors.white.withValues(alpha: 0.3),
-                                  Colors.white.withValues(alpha: 0.6),
-                                  Colors.white.withValues(alpha: 0.3),
-                                ],
-                              ),
-                            ),
-                          ),
-                          if (ucus.stops > 0)
-                            Text(
-                              '${ucus.stops} Aktarma',
-                              style: TextStyle(
-                                color: Colors.orange.shade300,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                      child: _buildTimeColumn(
-                        time: ucus.arrivalTime,
-                        airport: ucus.arrivalAirport,
-                        label: 'Varış',
-                        alignRight: true,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTimeColumn({
-    required String time,
-    required String airport,
-    required String label,
-    bool alignRight = false,
-  }) {
-    return Column(
-      crossAxisAlignment: alignRight ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-      children: [
-        Text(
-          time,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        Text(
-          airport,
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.6),
-            fontSize: 12,
-          ),
-        ),
-        Text(
-          label,
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.4),
-            fontSize: 10,
-          ),
-        ),
-      ],
-    );
-  }
-
-  void _ucuSec(FlightOffer ucus) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Uçuş Seçildi'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.check_circle, color: Colors.green, size: 48),
-            const SizedBox(height: 12),
-            Text(
-              '${ucus.airline} - ${ucus.flightNumber}',
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '${ucus.departureAirport} → ${ucus.arrivalAirport}',
-            ),
-            const SizedBox(height: 4),
-            Text('${ucus.priceTL.toStringAsFixed(0)} ₺'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Tamam'),
           ),
         ],
       ),

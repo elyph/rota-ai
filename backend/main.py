@@ -43,6 +43,7 @@ CITY_COORDINATES = {
     "mardin": (37.3122, 40.7351),
     "edirne": (41.6771, 26.5557),
     "çanakkale": (40.1553, 26.4142),
+    "denizli": (37.7765, 29.0864),
     "lefkoşa": (35.1856, 33.3823),
 }
 
@@ -342,6 +343,78 @@ async def get_cities():
     ]
     return {"status": "success", "cities": cities}
 
+
+@app.get("/popular-places")
+async def get_popular_places():
+    """Türkiye genelinde en yüksek skorlu turistik yerleri döndürür (Google Places API).
+    Skor = rating * (1 + min(userRatingsTotal, 999999) / 1000)
+    """
+    if not GOOGLE_PLACES_API_KEY:
+        return {"status": "success", "places": _get_popular_places_fallback(), "source": "fallback"}
+
+    # Birden fazla şehirden en popüler yerleri çek
+    target_cities = ["istanbul", "nevşehir", "antalya", "muğla", "izmir", "trabzon", "denizli", "bursa", "mardin"]
+
+    try:
+        tasks = []
+        for city in target_cities:
+            if city in CITY_COORDINATES:
+                lat, lng = CITY_COORDINATES[city]
+                tasks.append(_fetch_places_from_google(lat, lng, 20000, 10))
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        all_places = []
+        city_names = {
+            "istanbul": "İstanbul",
+            "nevşehir": "Nevşehir",
+            "antalya": "Antalya",
+            "muğla": "Muğla",
+            "izmir": "İzmir",
+            "trabzon": "Trabzon",
+            "denizli": "Denizli",
+            "bursa": "Bursa",
+            "mardin": "Mardin",
+        }
+
+        for i, result in enumerate(results):
+            if isinstance(result, Exception):
+                continue
+            city_key = target_cities[i]
+            for place in result:
+                place["city"] = city_names.get(city_key, city_key.capitalize())
+                all_places.append(place)
+
+        # Skor hesapla: rating * (1 + min(userRatingsTotal, 999999) / 1000)
+        def calc_score(place):
+            rating = place.get("rating", 0)
+            total = place.get("userRatingsTotal", 0)
+            return rating * (1 + min(total, 999999) / 1000)
+
+        # Skora göre sırala, en yüksek 15 tanesini al
+        all_places.sort(key=calc_score, reverse=True)
+        top_places = all_places[:15]
+
+        return {"status": "success", "places": top_places, "source": "google_places"}
+    except Exception as e:
+        return {"status": "success", "places": _get_popular_places_fallback(), "source": "fallback"}
+
+
+def _get_popular_places_fallback():
+    """Google Places API çalışmazsa fallback veri."""
+    return [
+        {"id": "fb1", "name": "Kapadokya", "city": "Nevşehir", "rating": 4.9, "userRatingsTotal": 50000, "photoUrl": "", "latitude": 38.6437, "longitude": 34.8285},
+        {"id": "fb2", "name": "Ayasofya Camii", "city": "İstanbul", "rating": 4.8, "userRatingsTotal": 45000, "photoUrl": "", "latitude": 41.0086, "longitude": 28.9802},
+        {"id": "fb3", "name": "Pamukkale", "city": "Denizli", "rating": 4.8, "userRatingsTotal": 35000, "photoUrl": "", "latitude": 37.9236, "longitude": 29.1197},
+        {"id": "fb4", "name": "Ölüdeniz", "city": "Muğla", "rating": 4.7, "userRatingsTotal": 30000, "photoUrl": "", "latitude": 36.5497, "longitude": 29.1153},
+        {"id": "fb5", "name": "Efes Antik Kenti", "city": "İzmir", "rating": 4.8, "userRatingsTotal": 20000, "photoUrl": "", "latitude": 37.9397, "longitude": 27.3408},
+        {"id": "fb6", "name": "Kaleiçi", "city": "Antalya", "rating": 4.7, "userRatingsTotal": 18000, "photoUrl": "", "latitude": 36.8874, "longitude": 30.7056},
+        {"id": "fb7", "name": "Topkapı Sarayı", "city": "İstanbul", "rating": 4.7, "userRatingsTotal": 38000, "photoUrl": "", "latitude": 41.0115, "longitude": 28.9833},
+        {"id": "fb8", "name": "Sümela Manastırı", "city": "Trabzon", "rating": 4.6, "userRatingsTotal": 12000, "photoUrl": "", "latitude": 40.6900, "longitude": 39.6567},
+        {"id": "fb9", "name": "Aspendos", "city": "Antalya", "rating": 4.7, "userRatingsTotal": 10000, "photoUrl": "", "latitude": 36.9389, "longitude": 31.1719},
+        {"id": "fb10", "name": "Galata Kulesi", "city": "İstanbul", "rating": 4.6, "userRatingsTotal": 22000, "photoUrl": "", "latitude": 41.0256, "longitude": 28.9741},
+    ]
+
 async def _fetch_places_from_google(lat: float, lng: float, radius: int, max_results: int):
     """Google Places API (Nearby Search) ile turistik yerleri çeker."""
     url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
@@ -632,4 +705,4 @@ Kuralların:
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    uvicorn.run(app, host="0.0.0.0", port=8004)

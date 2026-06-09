@@ -1,286 +1,557 @@
-import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../theme/app_theme.dart';
 import '../models/popular_place.dart';
 import '../services/popular_places_service.dart';
 import 'plan_wizard_screen.dart';
+import 'flights_screen.dart';
+import 'hotels_screen.dart';
+import 'places_screen.dart';
+import 'popular_places_list_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
-  Future<void> _haritadaAc(BuildContext context, PopularPlace place) async {
-    final uri = Uri.parse(place.googleMapsUrl);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Harita açılamadı: ${place.name}'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  List<PopularPlace> _popularPlaces = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPopularPlaces();
+  }
+
+  Future<void> _loadPopularPlaces() async {
+    final places = await PopularPlacesService.fetchPopularPlaces();
+    if (mounted) {
+      setState(() {
+        _popularPlaces = places;
+        _isLoading = false;
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final popularPlaces = PopularPlacesService.getPopularPlaces();
+    final user = Supabase.instance.client.auth.currentUser;
+    final userName =
+        user?.userMetadata?['full_name']?.split(' ')[0] ?? 'Abdullah';
 
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: AppTheme.backgroundGradient,
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ========== ÜST BAŞLIK ==========
-                Center(
-                  child: Column(
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header - Greeting & Avatar
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(18),
-                        decoration: BoxDecoration(
-                          gradient: AppTheme.primaryGradient,
-                          borderRadius: BorderRadius.circular(22),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppTheme.primaryColor.withValues(alpha: 0.3),
-                              blurRadius: 20,
-                              offset: const Offset(0, 8),
+                      Row(
+                        children: [
+                          Text(
+                            'Merhaba, $userName',
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF0F172A),
                             ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.explore_rounded,
-                          size: 42,
-                          color: Colors.white,
-                        ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text('👋', style: TextStyle(fontSize: 24)),
+                        ],
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 4),
                       const Text(
-                        'Rota AI',
-                        style: TextStyle(
-                          fontSize: 30,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          letterSpacing: 1.5,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Akıllı Seyahat Planlayıcınız',
+                        'Yeni bir macera seni bekliyor!',
                         style: TextStyle(
                           fontSize: 14,
-                          color: Colors.white.withValues(alpha: 0.6),
-                          fontWeight: FontWeight.w400,
+                          color: Color(0xFF64748B),
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
                   ),
+                  const CircleAvatar(
+                    radius: 24,
+                    backgroundImage:
+                        NetworkImage('https://i.pravatar.cc/150?img=11'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // Hero Card with airplane illustration
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const PlanWizardScreen()),
+                  );
+                },
+                child: Container(
+                  width: double.infinity,
+                  height: 220,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(24),
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF5374FF), Color(0xFF3892FF)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF5374FF).withValues(alpha: 0.3),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: Stack(
+                      children: [
+                        // Background image - fills right side with fade
+                        Positioned(
+                          right: 0,
+                          top: 0,
+                          bottom: 0,
+                          width: MediaQuery.of(context).size.width * 0.5,
+                          child: ShaderMask(
+                            shaderCallback: (Rect bounds) {
+                              return const LinearGradient(
+                                colors: [Colors.transparent, Colors.white],
+                                stops: [0.0, 0.3],
+                                begin: Alignment.centerLeft,
+                                end: Alignment.centerRight,
+                              ).createShader(bounds);
+                            },
+                            blendMode: BlendMode.dstIn,
+                            child: Image.asset(
+                              'assets/images/hero_plane.png',
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const SizedBox.shrink(),
+                            ),
+                          ),
+                        ),
+                        // Text content
+                        Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Text(
+                                'Hemen\nseyahatini planla',
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                  height: 1.2,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              SizedBox(
+                                width:
+                                    MediaQuery.of(context).size.width * 0.45,
+                                child: Text(
+                                  'Uçuş, otel ve gezilecek yerleri kolayca oluştur, hayalindeki seyahati gerçeğe dönüştür.',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color:
+                                        Colors.white.withValues(alpha: 0.9),
+                                    height: 1.3,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'Planlamaya Başla',
+                                      style: TextStyle(
+                                        color: Color(0xFF5374FF),
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                    SizedBox(width: 6),
+                                    Icon(Icons.arrow_forward_rounded,
+                                        size: 16, color: Color(0xFF5374FF)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 28),
+              ),
+              const SizedBox(height: 32),
 
-                // ========== SEYAHAT PLANLA BÖLÜMÜ ==========
-                _buildPlanSection(context),
-                const SizedBox(height: 28),
+              // Quick Access Section
+              const Text(
+                'Hızlı Erişim',
+                style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A)),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildQuickAccessCard(
+                    Icons.flight,
+                    'Uçuş Ara',
+                    'En uygun uçuşları bul',
+                    const Color(0xFF5374FF),
+                    () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const FlightsScreen()),
+                      );
+                    },
+                  ),
+                  _buildQuickAccessCard(
+                    Icons.apartment_rounded,
+                    'Otel Bul',
+                    'Konaklama seçenekleri',
+                    const Color(0xFFA855F7),
+                    () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const HotelsScreen()),
+                      );
+                    },
+                  ),
+                  _buildQuickAccessCard(
+                    Icons.location_on_rounded,
+                    'Keşfet',
+                    'Gezilecek yerleri keşfet',
+                    const Color(0xFF10B981),
+                    () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const PlacesScreen()),
+                      );
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 32),
 
-                // ========== POPÜLER YERLER BAŞLIĞI ==========
-                Row(
+              // Popular Places Section
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Türkiye\'de Popüler Yerler',
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF0F172A)),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) =>
+                                const PopularPlacesListScreen()),
+                      );
+                    },
+                    child: const Row(
+                      children: [
+                        Text('Tümünü Gör',
+                            style: TextStyle(
+                                color: Color(0xFF5374FF),
+                                fontWeight: FontWeight.w600)),
+                        Icon(Icons.chevron_right_rounded,
+                            size: 18, color: Color(0xFF5374FF)),
+                      ],
+                    ),
+                  )
+                ],
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 240,
+                child: _isLoading
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          color: Color(0xFF5374FF),
+                        ),
+                      )
+                    : ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        clipBehavior: Clip.none,
+                        itemCount: _popularPlaces.length,
+                        itemBuilder: (context, index) {
+                          final place = _popularPlaces[index];
+                          return _buildHorizontalPlaceCard(
+                              context, place, index);
+                        },
+                      ),
+              ),
+              const SizedBox(height: 32),
+
+              // Save Plans Banner
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 20, vertical: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.03),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4)),
+                  ],
+                ),
+                child: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: AppTheme.accentColor.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(Icons.trending_up_rounded, color: AppTheme.accentColor, size: 20),
+                          color: const Color(0xFFF3F4F6),
+                          borderRadius: BorderRadius.circular(16)),
+                      child: const Icon(Icons.luggage_rounded,
+                          color: Color(0xFF5374FF), size: 28),
                     ),
-                    const SizedBox(width: 10),
-                    const Text(
-                      'Popüler Yerler',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
+                    const SizedBox(width: 16),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Planlarını Kaydet',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 16,
+                                  color: Color(0xFF0F172A))),
+                          SizedBox(height: 4),
+                          Text(
+                              'En sevdiğin seyahat planlarını kaydet, daha sonra kolayca devam et.',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF64748B))),
+                        ],
                       ),
+                    ),
+                    const SizedBox(width: 12),
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: const Icon(Icons.arrow_forward_ios_rounded,
+                          color: Color(0xFF64748B), size: 16),
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-
-                // ========== POPÜLER YERLER LİSTESİ ==========
-                ...List.generate(popularPlaces.length, (index) {
-                  final place = popularPlaces[index];
-                  return _buildPlaceCard(context, place, index);
-                }),
-              ],
-            ),
+              ),
+              const SizedBox(height: 100), // Extra space for FAB
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildPlanSection(BuildContext context) {
-    final user = Supabase.instance.client.auth.currentUser;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: AppTheme.elevatedGlassCard(),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              gradient: AppTheme.primaryGradient,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Icon(Icons.travel_explore_rounded, size: 32, color: Colors.white),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Hemen Seyahatini Planla!',
-            style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700, color: Colors.white),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            user != null
-                ? 'Uçuşunu seç, otelini belirle, gezilecek yerleri ekle.'
-                : 'Planlamaya başlamak için giriş yapın.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.6)),
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: user != null ? AppTheme.primaryGradient : null,
-                color: user != null ? null : Colors.white.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(14),
+  Widget _buildQuickAccessCard(IconData icon, String title, String subtitle,
+      Color color, VoidCallback onTap) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 4),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
               ),
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  if (user != null) {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const PlanWizardScreen()));
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: const Text('Planlamak için giriş yapın! Profil sekmesine gidin.'),
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                    );
-                  }
-                },
-                icon: Icon(user != null ? Icons.rocket_launch_rounded : Icons.login_rounded, size: 20),
-                label: Text(
-                  user != null ? 'Planlamaya Başla' : 'Giriş Yap / Kayıt Ol',
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  foregroundColor: Colors.white,
-                  shadowColor: Colors.transparent,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                ),
-              ),
-            ),
+            ],
           ),
-        ],
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(icon, color: color, size: 28),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                title,
+                style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                    color: Color(0xFF0F172A)),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    fontSize: 10,
+                    color: Color(0xFF64748B),
+                    fontWeight: FontWeight.w500),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildPlaceCard(BuildContext context, PopularPlace place, int index) {
-    final ratingColor = place.rating >= 4.7
-        ? const Color(0xFF10B981)
-        : place.rating >= 4.5
-            ? const Color(0xFF34D399)
-            : const Color(0xFFFBBF24);
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () => _haritadaAc(context, place),
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: AppTheme.glassCard(opacity: 0.06, borderOpacity: 0.08, radius: 16),
-            child: Row(
-              children: [
-                // Numara
-                Container(
-                  width: 44,
-                  height: 44,
+  Widget _buildHorizontalPlaceCard(
+      BuildContext context, PopularPlace place, int index) {
+    return Container(
+      width: 150,
+      margin: const EdgeInsets.only(right: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Stack(
+            children: [
+              ClipRRect(
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(20)),
+                child: Image.network(
+                  place.imageUrl.isNotEmpty
+                      ? place.imageUrl
+                      : 'https://images.unsplash.com/photo-1524231757912-21f4fe3a7200?w=500',
+                  height: 140,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    height: 140,
+                    width: double.infinity,
+                    color: Colors.grey[200],
+                    child: const Icon(Icons.image_not_supported,
+                        color: Colors.grey),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 10,
+                left: 10,
+                child: Container(
+                  width: 24,
+                  height: 24,
                   decoration: BoxDecoration(
-                    gradient: AppTheme.primaryGradient,
-                    borderRadius: BorderRadius.circular(12),
+                    color: const Color(0xFF10B981),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.2),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
                   child: Center(
                     child: Text(
                       '${index + 1}',
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white),
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 12),
                     ),
                   ),
                 ),
-                const SizedBox(width: 14),
-
-                // İçerik
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        place.name,
-                        style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white, fontSize: 14),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(Icons.location_on_rounded, size: 12, color: Colors.white.withValues(alpha: 0.4)),
-                          const SizedBox(width: 3),
-                          Text(place.city, style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5))),
-                          const SizedBox(width: 10),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: ratingColor.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.star_rounded, size: 11, color: ratingColor),
-                                const SizedBox(width: 2),
-                                Text(place.rating.toString(), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: ratingColor)),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+              ),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  place.name,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF0F172A),
+                      fontSize: 14),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-
-                Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.white.withValues(alpha: 0.3)),
+                const SizedBox(height: 2),
+                Text(
+                  place.city,
+                  style: const TextStyle(
+                      color: Color(0xFF64748B),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(Icons.star_rounded,
+                        color: Color(0xFFFBBF24), size: 16),
+                    const SizedBox(width: 4),
+                    Text(
+                      place.rating.toString(),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF0F172A),
+                          fontSize: 12),
+                    ),
+                  ],
+                )
               ],
             ),
-          ),
-        ),
+          )
+        ],
       ),
     );
   }

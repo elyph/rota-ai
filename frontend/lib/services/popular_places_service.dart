@@ -1,85 +1,132 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import '../models/popular_place.dart';
 
 class PopularPlacesService {
-  /// Türkiye'nin popüler turistik yerlerini döndürür
-  /// Gerçek uygulamada backend API'den çekilecek
-  static List<PopularPlace> getPopularPlaces() {
-    return [
-      const PopularPlace(
-        name: 'Ayasofya-i Kebir Camii',
-        city: 'İstanbul',
-        description: 'Bizans İmparatoru I. Justinianus tarafından yaptırılan, dünyanın en eski ve en görkemli yapılarından biri.',
-        imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/93/Hagia_Sophia_%2846785994115%29.jpg/800px-Hagia_Sophia_%2846785994115%29.jpg',
-        rating: 4.8,
-        latitude: 41.0086,
-        longitude: 28.9802,
-        category: 'Tarihi Yapı',
-      ),
-      const PopularPlace(
-        name: 'Peri Bacaları',
+  static String get _baseUrl => 'http://localhost:8004';
+
+  /// Backend'den Google Places API üzerinden en popüler yerleri çeker
+  static Future<List<PopularPlace>> fetchPopularPlaces() async {
+    try {
+      final response = await http
+          .get(Uri.parse('$_baseUrl/popular-places'))
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode != 200) {
+        return _getFallbackPlaces();
+      }
+
+      final jsonResponse = jsonDecode(response.body);
+      if (jsonResponse['status'] != 'success') {
+        return _getFallbackPlaces();
+      }
+
+      final placesList = jsonResponse['places'] as List? ?? [];
+      return placesList.map((p) {
+        return PopularPlace(
+          name: p['name'] ?? '',
+          city: p['city'] ?? p['address'] ?? '',
+          description: '',
+          imageUrl: p['photoUrl'] ?? '',
+          rating: (p['rating'] ?? 0).toDouble(),
+          latitude: (p['latitude'] ?? 0).toDouble(),
+          longitude: (p['longitude'] ?? 0).toDouble(),
+          category: (p['types'] is List && (p['types'] as List).isNotEmpty)
+              ? (p['types'] as List).first.toString()
+              : '',
+        );
+      }).toList();
+    } catch (e) {
+      return _getFallbackPlaces();
+    }
+  }
+
+  /// API çalışmazsa fallback veriler
+  static List<PopularPlace> _getFallbackPlaces() {
+    return const [
+      PopularPlace(
+        name: 'Kapadokya',
         city: 'Nevşehir',
-        description: 'Kapadokya\'nın eşsiz doğal oluşumları, sıcak hava balonlarıyla ünlü büyülü bir coğrafya.',
-        imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/G%C3%B6reme_Balloons_%282%29.jpg/800px-G%C3%B6reme_Balloons_%282%29.jpg',
+        description: 'Sıcak hava balonlarıyla ünlü büyülü coğrafya.',
+        imageUrl:
+            'https://images.unsplash.com/photo-1641128324972-af3212f0f6bd?w=600&q=80',
         rating: 4.9,
         latitude: 38.6437,
         longitude: 34.8285,
         category: 'Doğal Güzellik',
       ),
-      const PopularPlace(
+      PopularPlace(
+        name: 'İstanbul',
+        city: 'İstanbul',
+        description: 'Boğaz manzarası ve eşsiz kültürel zenginlikler.',
+        imageUrl:
+            'https://images.unsplash.com/photo-1524231757912-21f4fe3a7200?w=600&q=80',
+        rating: 4.8,
+        latitude: 41.0086,
+        longitude: 28.9802,
+        category: 'Şehir',
+      ),
+      PopularPlace(
+        name: 'Pamukkale',
+        city: 'Denizli',
+        description: 'Beyaz traverten terasları ve antik Hierapolis.',
+        imageUrl:
+            'https://images.unsplash.com/photo-1600460484673-edd27bf4e9f7?w=600&q=80',
+        rating: 4.8,
+        latitude: 37.9236,
+        longitude: 29.1197,
+        category: 'Doğal Güzellik',
+      ),
+      PopularPlace(
+        name: 'Ölüdeniz',
+        city: 'Muğla',
+        description: 'Turkuaz denizi ve yamaç paraşütüyle ünlü cennet koy.',
+        imageUrl:
+            'https://images.unsplash.com/photo-1519451241324-20b4ea2c4220?w=600&q=80',
+        rating: 4.7,
+        latitude: 36.5497,
+        longitude: 29.1153,
+        category: 'Plaj',
+      ),
+      PopularPlace(
         name: 'Efes Antik Kenti',
         city: 'İzmir',
-        description: 'Antik Yunan ve Roma dönemlerinin en önemli şehirlerinden biri, Celsus Kütüphanesi ile ünlü.',
-        imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/Library_of_Celsus_in_Ephesus.jpg/800px-Library_of_Celsus_in_Ephesus.jpg',
+        description: 'Celsus Kütüphanesi ile ünlü antik şehir.',
+        imageUrl:
+            'https://images.unsplash.com/photo-1590076082562-3f6b6a8b5b80?w=600&q=80',
         rating: 4.8,
         latitude: 37.9397,
         longitude: 27.3408,
         category: 'Antik Kent',
       ),
-      const PopularPlace(
-        name: 'Pamukkale Travertenleri',
-        city: 'Denizli',
-        description: 'Beyaz traverten terasları ve antik Hierapolis kentiyle eşsiz bir doğa harikası.',
-        imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/Pamukkale_30.jpg/800px-Pamukkale_30.jpg',
-        rating: 4.7,
-        latitude: 37.9236,
-        longitude: 29.1197,
-        category: 'Doğal Güzellik',
-      ),
-      const PopularPlace(
-        name: 'Sultanahmet Camii (Mavi Camii)',
-        city: 'İstanbul',
-        description: 'Altı minaresi ve muhteşem çinileriyle İstanbul\'un sembol yapılarından biri.',
-        imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Sultan_Ahmed_Camii_%28Blue_Mosque%29.jpg/800px-Sultan_Ahmed_Camii_%28Blue_Mosque%29.jpg',
-        rating: 4.7,
-        latitude: 41.0054,
-        longitude: 28.9768,
-        category: 'Tarihi Yapı',
-      ),
-      const PopularPlace(
-        name: 'Sumela Manastırı',
-        city: 'Trabzon',
-        description: 'Karadeniz\'in yeşil doğasında, kayalara oyulmuş tarihi bir manastır.',
-        imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Sumela_Monastery_view.jpg/800px-Sumela_Monastery_view.jpg',
-        rating: 4.6,
-        latitude: 40.8300,
-        longitude: 39.6650,
-        category: 'Tarihi Yapı',
-      ),
-      const PopularPlace(
-        name: 'Kaleiçi',
+      PopularPlace(
+        name: 'Antalya',
         city: 'Antalya',
-        description: 'Dar sokakları, tarihi evleri ve limanıyla Antalya\'nın büyüleyici tarihi merkezi.',
-        imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/Kaleici_Antalya.jpg/800px-Kaleici_Antalya.jpg',
+        description: 'Tarihi Kaleiçi ve muhteşem sahilleri.',
+        imageUrl:
+            'https://images.unsplash.com/photo-1593238739364-18cfde3bfe84?w=600&q=80',
         rating: 4.7,
         latitude: 36.8874,
         longitude: 30.7056,
-        category: 'Tarihi Merkez',
+        category: 'Şehir',
       ),
-      const PopularPlace(
+      PopularPlace(
+        name: 'Trabzon',
+        city: 'Trabzon',
+        description: 'Sümela Manastırı ve yaylalarıyla ünlü şehir.',
+        imageUrl:
+            'https://images.unsplash.com/photo-1603483080228-04f2313d9f10?w=600&q=80',
+        rating: 4.6,
+        latitude: 40.8300,
+        longitude: 39.6650,
+        category: 'Doğa',
+      ),
+      PopularPlace(
         name: 'Nemrut Dağı',
         city: 'Adıyaman',
-        description: 'Kommagene Krallığı\'na ait dev heykelleriyle ünlü, gün doğumu ve batımı eşsiz bir tepe.',
-        imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/Nemrut_Da%C4%9F%C4%B1_heykelleri.jpg/800px-Nemrut_Da%C4%9F%C4%B1_heykelleri.jpg',
+        description: 'Dev heykelleriyle ünlü eşsiz tepe.',
+        imageUrl:
+            'https://images.unsplash.com/photo-1589561454226-796a8c0e5754?w=600&q=80',
         rating: 4.6,
         latitude: 37.9809,
         longitude: 38.7408,
