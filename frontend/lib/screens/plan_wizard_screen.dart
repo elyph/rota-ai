@@ -25,6 +25,24 @@ class _PlanWizardScreenState extends State<PlanWizardScreen> {
   DateTime? _gidisTarihi;
   DateTime? _donusTarihi;
 
+  double? _butce;
+  final TextEditingController _butceController = TextEditingController();
+
+  double get _toplamMaliyet {
+    double toplam = 0;
+    if (_secilenGidisUcus != null) toplam += _secilenGidisUcus!.priceTL;
+    if (_secilenDonusUcus != null) toplam += _secilenDonusUcus!.priceTL;
+    if (_secilenOtel != null && _secilenOtel!.pricePerNight != null) {
+      final geceSayisi = _donusTarihi != null && _gidisTarihi != null
+          ? _donusTarihi!.difference(_gidisTarihi!).inDays.clamp(1, 365)
+          : 1;
+      toplam += _secilenOtel!.pricePerNight! * geceSayisi;
+    }
+    return toplam;
+  }
+
+  bool get _butceAsildi => _butce != null && _butce! > 0 && _toplamMaliyet > _butce!;
+
   List<FlightOffer>? _gidisUcuslari;
   FlightOffer? _secilenGidisUcus;
   List<FlightOffer>? _donusUcuslari;
@@ -147,6 +165,26 @@ class _PlanWizardScreenState extends State<PlanWizardScreen> {
                   const SizedBox(width: 12),
                   Expanded(child: _buildDateButton('Dönüş (opsiyonel)', _donusTarihi, () => _selectDate(false))),
                 ]),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _butceController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(
+                    labelText: 'Bütçe (opsiyonel)',
+                    hintText: 'örn: 15000',
+                    prefixIcon: const Icon(Icons.account_balance_wallet_outlined, color: Color(0xFF64748B)),
+                    suffixText: '₺',
+                    filled: true,
+                    fillColor: const Color(0xFFF1F5F9),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    labelStyle: const TextStyle(color: Color(0xFF64748B)),
+                  ),
+                  onChanged: (v) {
+                    setState(() {
+                      _butce = double.tryParse(v.replaceAll(',', '.'));
+                    });
+                  },
+                ),
               ],
             ),
           ),
@@ -291,6 +329,7 @@ class _PlanWizardScreenState extends State<PlanWizardScreen> {
                       hotel: h,
                       selected: selected,
                       onTap: () => setState(() => _secilenOtel = h),
+                      index: idx,
                     );
                   },
                 ),
@@ -431,6 +470,14 @@ class _PlanWizardScreenState extends State<PlanWizardScreen> {
                 Expanded(child: Text(y.name, style: const TextStyle(color: Color(0xFF334155), fontSize: 14))),
               ]))),
             ],
+            if (_toplamMaliyet > 0) ...[
+              const Divider(color: Color(0xFFF1F5F9), height: 32, thickness: 1.5),
+              _BudgetSummary(
+                toplamMaliyet: _toplamMaliyet,
+                butce: _butce,
+                butceAsildi: _butceAsildi,
+              ),
+            ],
           ])),
       ]))),
       Container(
@@ -485,6 +532,7 @@ class _PlanWizardScreenState extends State<PlanWizardScreen> {
   @override
   void dispose() {
     _otelSehirController.dispose();
+    _butceController.dispose();
     _flightService.dispose();
     _placesService.dispose();
     _hotelService.dispose();
@@ -592,6 +640,8 @@ class _PlanWizardScreenState extends State<PlanWizardScreen> {
         departureCity: _kalkis!.code, arrivalCity: _varis!.code,
         departureDate: _gidisTarihi!.toIso8601String().split('T')[0],
         returnDate: _donusTarihi?.toIso8601String().split('T')[0],
+        budget: _butce,
+        estimatedCost: _toplamMaliyet > 0 ? _toplamMaliyet : null,
         flightInfo: _secilenGidisUcus != null ? {
           'airline': _secilenGidisUcus!.airline, 'flight_number': _secilenGidisUcus!.flightNumber,
           'departure_time': _secilenGidisUcus!.departureTime, 'arrival_time': _secilenGidisUcus!.arrivalTime,
@@ -603,14 +653,20 @@ class _PlanWizardScreenState extends State<PlanWizardScreen> {
           'name': _secilenOtel!.name,
           'address': _secilenOtel!.address,
           'rating': _secilenOtel!.rating,
+          'reviewCount': _secilenOtel!.reviewCount,
+          'stars': _secilenOtel!.stars,
           'price_per_night': _secilenOtel!.pricePerNight,
           'image_url': _secilenOtel!.imageUrl,
+          'amenities': _secilenOtel!.amenities,
         } : null,
         selectedPlaces: _secilenYerler.map((y) => {'name': y.name, 'address': y.address, 'rating': y.rating}).toList(),
         itinerary: itinerary,
       );
       if (mounted) { _showSnack('Plan kaydedildi!'); Navigator.pop(context, true); }
-    } catch (e) { _showSnack('Kaydetme hatası: $e'); }
+    } catch (e, st) {
+      debugPrint('KAYIT HATASI: $e\n$st');
+      _showSnack('Kaydetme hatası: $e');
+    }
   }
 
   String _formatDate(DateTime? date) {
@@ -624,9 +680,339 @@ class _PlanWizardScreenState extends State<PlanWizardScreen> {
   }
 }
 
-class _SelectableHotelRow extends StatelessWidget {
-  final Hotel hotel; final bool selected; final VoidCallback onTap;
-  const _SelectableHotelRow({required this.hotel, required this.selected, required this.onTap});
+class _BudgetSummary extends StatelessWidget {
+  final double toplamMaliyet;
+  final double? butce;
+  final bool butceAsildi;
+
+  const _BudgetSummary({
+    required this.toplamMaliyet,
+    required this.butce,
+    required this.butceAsildi,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final kalan = butce != null ? butce! - toplamMaliyet : null;
+    final renk = butceAsildi ? const Color(0xFFEF4444) : const Color(0xFF22C55E);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: butceAsildi
+            ? const Color(0xFFFEF2F2)
+            : const Color(0xFFF0FDF4),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: renk.withValues(alpha: 0.4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Icon(
+              butceAsildi ? Icons.warning_amber_rounded : Icons.account_balance_wallet_rounded,
+              color: renk,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '💰 Maliyet Özeti',
+              style: TextStyle(color: renk, fontWeight: FontWeight.bold, fontSize: 15),
+            ),
+          ]),
+          const SizedBox(height: 12),
+          _maliyetSatiri('Tahmini Toplam', '${toplamMaliyet.toStringAsFixed(0)} ₺', const Color(0xFF0F172A)),
+          if (butce != null && butce! > 0) ...[
+            _maliyetSatiri('Belirlenen Bütçe', '${butce!.toStringAsFixed(0)} ₺', const Color(0xFF64748B)),
+            _maliyetSatiri(
+              butceAsildi ? 'Bütçe Aşımı' : 'Kalan Bütçe',
+              '${kalan!.abs().toStringAsFixed(0)} ₺',
+              renk,
+            ),
+          ],
+          if (butceAsildi) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Seçimleriniz belirlediğiniz bütçeyi aşıyor.',
+              style: TextStyle(color: renk, fontSize: 12),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _maliyetSatiri(String label, String deger, Color degerRenk) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: Color(0xFF64748B), fontSize: 13)),
+          Text(deger, style: TextStyle(color: degerRenk, fontWeight: FontWeight.w700, fontSize: 14)),
+        ],
+      ),
+    );
+  }
+}
+
+class _SelectableHotelRow extends StatefulWidget {
+  final Hotel hotel;
+  final bool selected;
+  final VoidCallback onTap;
+  final int index;
+  const _SelectableHotelRow({required this.hotel, required this.selected, required this.onTap, this.index = 0});
+
+  @override
+  State<_SelectableHotelRow> createState() => _SelectableHotelRowState();
+}
+
+class _SelectableHotelRowState extends State<_SelectableHotelRow> {
+  bool _imageReady = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Her otel görselini 100ms arayla yükle (rate limit'i önlemek için)
+    Future.delayed(Duration(milliseconds: widget.index * 100), () {
+      if (mounted) setState(() => _imageReady = true);
+    });
+  }
+
+  Hotel get hotel => widget.hotel;
+  bool get selected => widget.selected;
+  VoidCallback get onTap => widget.onTap;
+
+  // SerpAPI Google Hotels'in döndürdüğü gerçek amenity string değerleri
+  static const Map<String, String> _amenityTr = {
+    // Otel amenities
+    'free parking': 'Ücretsiz otopark',
+    'parking': 'Otopark',
+    'indoor pool': 'Kapalı havuz',
+    'outdoor pool': 'Açık havuz',
+    'pool': 'Havuz',
+    'fitness center': 'Spor salonu',
+    'fitness centre': 'Spor salonu',
+    'restaurant': 'Restoran',
+    'free breakfast': 'Ücretsiz kahvaltı',
+    'breakfast (\$)': 'Kahvaltı (ücretli)',
+    'spa': 'Spa',
+    'beach access': 'Plaj erişimi',
+    'child-friendly': 'Çocuk dostu',
+    'kid-friendly': 'Çocuk dostu',
+    'bar': 'Bar',
+    'pet-friendly': 'Evcil hayvan kabul edilir',
+    'room service': 'Oda servisi',
+    'free wi-fi': 'Ücretsiz Wi-Fi',
+    'air-conditioned': 'Klima',
+    'all-inclusive available': 'Her şey dahil seçeneği',
+    'wheelchair accessible': 'Tekerlekli sandalye erişimi',
+    'ev charger': 'Elektrikli araç şarjı',
+
+    // Tatil kiralık amenities (vacation rentals)
+    'hot tub': 'Jakuzi',
+    'outdoor grill': 'Açık ızgara',
+    'fireplace': 'Şömine',
+    'patio or deck': 'Veranda',
+    'kitchen': 'Mutfak',
+    'cot': 'Portatif yatak',
+    'crib': 'Bebek karyolası',
+    'washer': 'Çamaşır makinesi',
+    'smoke-free': 'Sigara içilmez',
+    'ironing board': 'Ütü masası',
+    'elevator': 'Asansör',
+    'microwave': 'Mikrodalga',
+    'oven stove': 'Fırın/ocak',
+    'balcony': 'Balkon',
+    'airport shuttle': 'Havaalanı servisi',
+
+    // "No X" / "Not X" formatları (negatif amenities)
+    'no airport shuttle': 'Havaalanı servisi yok',
+    'no beach access': 'Plaj erişimi yok',
+    'no elevator': 'Asansör yok',
+    'no fireplace': 'Şömine yok',
+    'no heating': 'Isıtma yok',
+    'no hot tub': 'Jakuzi yok',
+    'no indoor pool': 'Kapalı havuz yok',
+    'no ironing board': 'Ütü masası yok',
+    'no kitchen': 'Mutfak yok',
+    'no microwave': 'Mikrodalga yok',
+    'no outdoor grill': 'Açık ızgara yok',
+    'no oven stove': 'Fırın/ocak yok',
+    'no patio': 'Veranda yok',
+    'not kid-friendly': 'Çocuk dostu değil',
+    'not wheelchair accessible': 'Tekerlekli sandalye erişimi yok',
+
+    // Ekranda görülenler ve ek yaygın değerler
+    'full-service laundry': 'Tam çamaşır servisi',
+    'business center': 'İş merkezi',
+    'accessible': 'Engelli erişimi',
+    'air conditioning': 'Klima',
+    'kitchen in some rooms': 'Bazı odalarda mutfak',
+    'smoke-free property': 'Sigara içilmez',
+    'room service (\$)': 'Oda servisi (ücretli)',
+    'breakfast included': 'Kahvaltı dahil',
+    'all-inclusive': 'Her şey dahil',
+    'airport shuttle (\$)': 'Havaalanı servisi (ücretli)',
+    'parking (\$)': 'Otopark (ücretli)',
+    'restaurant (\$)': 'Restoran (ücretli)',
+    'bar (\$)': 'Bar (ücretli)',
+    'laundry service': 'Çamaşır servisi',
+    'outdoor space': 'Açık alan',
+    'terrace': 'Teras',
+    'concierge': 'Konsiyerj',
+    'golf': 'Golf',
+    'casino': 'Kumarhane',
+    '24-hour front desk': '24 saat resepsiyon',
+    'luggage storage': 'Bagaj emaneti',
+    'non-smoking rooms': 'Sigara içilmeyen odalar',
+    'family rooms': 'Aile odaları',
+    'ocean view': 'Deniz manzarası',
+    'mountain view': 'Dağ manzarası',
+    'city view': 'Şehir manzarası',
+  };
+
+  String _translateAmenity(String amenity) {
+    final key = amenity.toLowerCase().trim();
+    return _amenityTr[key] ?? amenity;
+  }
+
+  void _showDetail(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      isScrollControlled: true,
+      builder: (ctx) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.7,
+          maxChildSize: 0.92,
+          minChildSize: 0.4,
+          expand: false,
+          builder: (ctx, scrollController) {
+            return SingleChildScrollView(
+              controller: scrollController,
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40, height: 4,
+                      decoration: BoxDecoration(color: const Color(0xFFE2E8F0), borderRadius: BorderRadius.circular(2)),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: SizedBox(
+                          width: 130, height: 130,
+                          child: hotel.imageUrl.isNotEmpty
+                              ? Image.network(hotel.imageUrl, fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Container(
+                                    color: const Color(0xFFF1F5F9),
+                                    child: const Icon(Icons.hotel_rounded, size: 48, color: Color(0xFF94A3B8)),
+                                  ))
+                              : Container(
+                                  color: const Color(0xFFF1F5F9),
+                                  child: const Icon(Icons.hotel_rounded, size: 48, color: Color(0xFF94A3B8)),
+                                ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(hotel.name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFEF3C7),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.star_rounded, size: 18, color: Color(0xFFF59E0B)),
+                                      const SizedBox(width: 4),
+                                      Text(hotel.rating.toStringAsFixed(1), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF92400E))),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Text('${hotel.reviewCount} değerlendirme', style: const TextStyle(fontSize: 13, color: Color(0xFF64748B), fontWeight: FontWeight.w500)),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                for (int i = 0; i < hotel.stars; i++)
+                                  const Icon(Icons.star_rounded, size: 18, color: Color(0xFFFBBF24)),
+                                for (int i = hotel.stars; i < 5; i++)
+                                  const Icon(Icons.star_rounded, size: 18, color: Color(0xFFE2E8F0)),
+                                const SizedBox(width: 8),
+                                Text('${hotel.stars} yıldız', style: const TextStyle(fontSize: 13, color: Color(0xFF64748B))),
+                              ],
+                            ),
+                            if (hotel.pricePerNight != null) ...[
+                              const SizedBox(height: 8),
+                              Text('₺${hotel.pricePerNight!.toStringAsFixed(0)} / gece', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF5374FF))),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (hotel.address.isNotEmpty) ...[
+                    const SizedBox(height: 24),
+                    const Text('Adres', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
+                    const SizedBox(height: 8),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.location_on_rounded, size: 18, color: Color(0xFF64748B)),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text(hotel.address, style: const TextStyle(fontSize: 14, color: Color(0xFF64748B), height: 1.4))),
+                      ],
+                    ),
+                  ],
+                  if (hotel.amenities.isNotEmpty) ...[
+                    const SizedBox(height: 24),
+                    const Text('Olanaklar', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: hotel.amenities.map((a) {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(_translateAmenity(a), style: const TextStyle(fontSize: 13, color: Color(0xFF334155), fontWeight: FontWeight.w500)),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -639,10 +1025,14 @@ class _SelectableHotelRow extends StatelessWidget {
           decoration: BoxDecoration(border: Border.all(color: selected ? const Color(0xFF5374FF) : Colors.transparent, width: 2), borderRadius: BorderRadius.circular(20), boxShadow: selected ? [] : [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4))]),
           padding: const EdgeInsets.all(16),
           child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            ClipRRect(borderRadius: BorderRadius.circular(16), child: SizedBox(width: 80, height: 80,
-              child: hotel.imageUrl.isNotEmpty ? Image.network(hotel.imageUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const ColoredBox(color: Color(0xFFF1F5F9), child: Icon(Icons.hotel_rounded, color: Color(0xFF94A3B8))))
-              : const ColoredBox(color: Color(0xFFF1F5F9), child: Icon(Icons.hotel_rounded, color: Color(0xFF94A3B8)))
-            )),
+            GestureDetector(
+              onTap: () => _showDetail(context),
+              child: ClipRRect(borderRadius: BorderRadius.circular(16), child: SizedBox(width: 80, height: 80,
+                child: _imageReady && hotel.imageUrl.isNotEmpty
+                  ? Image.network(hotel.imageUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const ColoredBox(color: Color(0xFFF1F5F9), child: Icon(Icons.hotel_rounded, color: Color(0xFF94A3B8))))
+                  : const ColoredBox(color: Color(0xFFF1F5F9), child: Icon(Icons.hotel_rounded, color: Color(0xFF94A3B8)))
+              )),
+            ),
             const SizedBox(width: 16),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(hotel.name, style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 16)), const SizedBox(height: 6),
@@ -650,7 +1040,13 @@ class _SelectableHotelRow extends StatelessWidget {
               const SizedBox(height: 8),
               Row(children: [
                 const Icon(Icons.star_rounded, size: 16, color: Colors.amber), const SizedBox(width: 4),
-                Text(hotel.rating.toStringAsFixed(1), style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w600, fontSize: 13)), const Spacer(),
+                Text(hotel.rating.toStringAsFixed(1), style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w600, fontSize: 13)),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: () => _showDetail(context),
+                  child: const Icon(Icons.info_outline_rounded, size: 18, color: Color(0xFF94A3B8)),
+                ),
+                const Spacer(),
                 if (hotel.pricePerNight != null) Text('${hotel.pricePerNight!.toStringAsFixed(0)} ₺', style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w800, fontSize: 15)),
               ]),
             ])),

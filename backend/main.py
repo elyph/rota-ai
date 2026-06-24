@@ -9,6 +9,7 @@ import os
 from datetime import date, timedelta
 from dotenv import load_dotenv
 import asyncio
+import math
 import vertexai
 from vertexai.generative_models import GenerativeModel, Content, Part
 
@@ -46,9 +47,93 @@ async def get_place_photo(maxwidth: int = 800, photo_reference: str = ""):
     return Response(content=resp.content, media_type=content_type)
 
 GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY", "")
-SERPAPI_KEY = os.getenv("SERPAPI_KEY", "")
+# Birden fazla SerpAPI key desteği — round-robin ile sırayla kullanılır
+_serpapi_keys = [k for k in [
+    os.getenv("SERPAPI_KEY", ""),
+    os.getenv("SERPAPI_KEY_2", ""),
+    os.getenv("SERPAPI_KEY_3", ""),
+] if k]
+_serpapi_index = 0
+
+def _get_serpapi_key() -> str:
+    """Mevcut key'i döndürür ve bir sonraki için indexi ilerletir."""
+    global _serpapi_index
+    if not _serpapi_keys:
+        return ""
+    key = _serpapi_keys[_serpapi_index % len(_serpapi_keys)]
+    _serpapi_index += 1
+    return key
+
+# Geriye dönük uyumluluk için — if SERPAPI_KEY kontrollerinde kullanılır
+SERPAPI_KEY = _serpapi_keys[0] if _serpapi_keys else ""
 RAPIDAPI_HOTEL_KEY = os.getenv("RAPIDAPI_HOTEL_KEY", "")
 RAPIDAPI_HOTEL_HOST = os.getenv("RAPIDAPI_HOTEL_HOST", "")
+
+# Türkiye'deki ticari havalimanları — şehir adı → IATA kodu
+# Ticari uçuşu olmayan şehirler (Eskişehir/AOE, Bursa vb.) en yakın aktif havalimanına yönlenir
+_CITY_TO_IATA = {
+    # İstanbul
+    "istanbul": "IST", "i̇stanbul": "IST", "ist": "IST", "atatürk": "IST",
+    "sabiha": "SAW", "saw": "SAW", "sabiha gökçen": "SAW", "pendik": "SAW",
+    # İç Anadolu
+    "ankara": "ESB", "esb": "ESB", "esenboğa": "ESB",
+    "konya": "KYA", "kya": "KYA",
+    "kayseri": "ASR", "asr": "ASR", "erkilet": "ASR",
+    "nevşehir": "NAV", "nevsehir": "NAV", "nav": "NAV", "kapadokya": "NAV",
+    "eskişehir": "ESB", "eskisehir": "ESB", "aoe": "ESB",  # AOE ticari değil → Ankara
+    # Ege
+    "izmir": "ADB", "i̇zmir": "ADB", "adb": "ADB", "adnan menderes": "ADB",
+    "bodrum": "BJV", "bjv": "BJV", "milas": "BJV",
+    "dalaman": "DLM", "dlm": "DLM", "muğla": "DLM", "mugla": "DLM", "marmaris": "DLM",
+    "denizli": "DNZ", "dnz": "DNZ", "çardak": "DNZ", "cardak": "DNZ",
+    "balıkesir": "EDO", "balikesir": "EDO", "edo": "EDO", "koca seyit": "EDO",
+    "çanakkale": "CKZ", "canakkale": "CKZ", "ckz": "CKZ",
+    "isparta": "ISE", "ise": "ISE", "süleyman demirel": "ISE",
+    "uşak": "USQ", "usak": "USQ", "usq": "USQ",
+    "afyon": "AFY", "afe": "AFY",
+    # Akdeniz
+    "antalya": "AYT", "ayt": "AYT",
+    "adana": "ADA", "ada": "ADA",
+    "hatay": "HTY", "hty": "HTY", "antakya": "HTY",
+    "kahramanmaraş": "KCM", "kahramanmaras": "KCM", "kcm": "KCM",
+    "gazipaşa": "GZP", "gazipasa": "GZP", "gzp": "GZP", "alanya": "GZP",
+    # Karadeniz
+    "trabzon": "TZX", "tzx": "TZX",
+    "samsun": "SZF", "szf": "SZF", "çarşamba": "SZF",
+    "ordu": "OGU", "ogu": "OGU", "giresun": "OGU", "ordu giresun": "OGU",
+    "rize": "RZV", "rzv": "RZV", "artvin": "RZV", "rize artvin": "RZV",
+    "sinop": "NOP", "nop": "NOP",
+    "zonguldak": "ONQ", "onq": "ONQ", "çaycuma": "ONQ",
+    "amasya": "MZH", "mzh": "MZH", "merzifon": "MZH",
+    "tokat": "TJK", "tjk": "TJK",
+    "kastamonu": "KFS", "kfs": "KFS",
+    # Doğu Anadolu
+    "erzurum": "ERZ", "erz": "ERZ",
+    "erzincan": "ERC", "erc": "ERC",
+    "van": "VAN", "van ferit melen": "VAN",
+    "malatya": "MLX", "mlx": "MLX",
+    "elazığ": "EZS", "elazig": "EZS", "ezs": "EZS",
+    "kars": "KSY", "ksy": "KSY",
+    "ağrı": "AJI", "agri": "AJI", "aji": "AJI",
+    "bingöl": "BGG", "bingol": "BGG", "bgg": "BGG",
+    "muş": "MSR", "mus": "MSR", "msr": "MSR",
+    "bitlis": "MSR",  # En yakın → Muş
+    # Güneydoğu Anadolu
+    "gaziantep": "GZT", "gzt": "GZT",
+    "diyarbakır": "DIY", "diyarbakir": "DIY", "diy": "DIY",
+    "mardin": "MQM", "mqm": "MQM",
+    "şanlıurfa": "GNY", "sanliurfa": "GNY", "gny": "GNY", "urfa": "GNY", "gap": "GNY",
+    "batman": "BAL", "bal": "BAL",
+    "şırnak": "NKT", "sirnak": "NKT", "nkt": "NKT", "cizre": "NKT",
+    "siirt": "SXZ", "sxz": "SXZ",
+    # Trakya
+    "tekirdağ": "TEQ", "tekirdag": "TEQ", "teq": "TEQ", "çorlu": "TEQ",
+    "edirne": "ESB",  # Havalimanı yok → Ankara değil, İstanbul mantıklı ama ESB default
+}
+
+def _normalize_iata(city: str) -> str:
+    """Şehir adını IATA koduna çevirir, zaten kod ise aynen döndürür."""
+    return _CITY_TO_IATA.get(city.lower().strip(), city.upper().strip())
 
 VERTEX_PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT", "project-f98e215d-48a4-40e2-8d3")
 VERTEX_LOCATION = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
@@ -74,6 +159,49 @@ CITY_COORDINATES = {
     "çanakkale": (40.1553, 26.4142),
     "denizli": (37.7765, 29.0864),
     "lefkoşa": (35.1856, 33.3823),
+    "bodrum": (37.0340, 27.4305),
+    "dalaman": (36.7833, 28.7833),
+    "kayseri": (38.7225, 35.4875),
+    "diyarbakır": (37.9144, 40.2306),
+    "van": (38.5012, 43.4072),
+    "malatya": (38.3552, 38.3095),
+    "hatay": (36.2021, 36.1603),
+    "kahramanmaraş": (37.5858, 36.9371),
+    "alanya": (36.5442, 31.9993),
+    "elazığ": (38.6748, 39.2225),
+    "erzincan": (39.7500, 39.5000),
+    "şanlıurfa": (37.1591, 38.7969),
+    "batman": (37.8812, 41.1351),
+}
+
+# IATA kodu → şehir adı (yerler için)
+_IATA_TO_CITY = {
+    "IST": "istanbul", "SAW": "istanbul",
+    "ESB": "ankara",
+    "ADB": "izmir",
+    "AYT": "antalya",
+    "BJV": "bodrum",
+    "DLM": "dalaman",
+    "TZX": "trabzon",
+    "ADA": "adana",
+    "GZT": "gaziantep",
+    "ASR": "kayseri",
+    "SZF": "samsun",
+    "ERZ": "erzurum",
+    "NAV": "nevşehir",
+    "VAN": "van",
+    "DIY": "diyarbakır",
+    "MLX": "malatya",
+    "KYA": "konya",
+    "HTY": "hatay",
+    "KCM": "kahramanmaraş",
+    "GZP": "alanya",
+    "DNZ": "denizli",
+    "EZS": "elazığ",
+    "ERC": "erzincan",
+    "MQM": "mardin",
+    "GNY": "şanlıurfa",
+    "BAL": "batman",
 }
 
 # Turistik yer türleri (Google Places types)
@@ -124,6 +252,7 @@ class HotelSearchRequest(BaseModel):
     guests: int = 1
     min_rating: float = 0.0
     max_price: Optional[float] = None
+    max_results: int = 50
 
 class ItineraryRequest(BaseModel):
     departure_city: str
@@ -293,6 +422,7 @@ async def search_hotels(request: HotelSearchRequest):
             guests=request.guests,
             min_rating=request.min_rating,
             max_price=request.max_price,
+            max_results=request.max_results,
         )
         return {"status": "success", "hotels": hotels}
     except Exception as e:
@@ -306,7 +436,7 @@ async def _fetch_hotels_serpapi(
     guests: int = 1,
     min_rating: float = 0.0,
     max_price: Optional[float] = None,
-    max_results: int = 15,
+    max_results: int = 50,
 ):
     """SerpAPI ile otel arama (Google Hotels)."""
     url = "https://serpapi.com/search.json"
@@ -339,9 +469,9 @@ async def _fetch_hotels_serpapi(
         "check_out_date": check_out,
         "adults": guests,
         "currency": "TRY",
-        "hl": "tr",
+        "hl": "en",
         "gl": "tr",
-        "api_key": SERPAPI_KEY,
+        "api_key": _get_serpapi_key(),
     }
     
     try:
@@ -405,11 +535,20 @@ async def _fetch_hotels_serpapi(
                 except Exception:
                     review_count = 0
             
-            # Filtreleme
+            stars_val = int(rating_val)
+            
+            # Temel filtre: en az 3 yıldız ve 25 değerlendirme
+            if stars_val < 3 or review_count < 25:
+                continue
+            
+            # Ek filtreler
             if min_rating and rating_val < min_rating:
                 continue
             if max_price is not None and price_val is not None and price_val > max_price:
                 continue
+            
+            # Skor = yıldız * log10(değerlendirme sayısı + 1)
+            score = stars_val * (math.log10(review_count + 1))
             
             # Resim - images listesinden ilkini al
             photo = ""
@@ -436,10 +575,14 @@ async def _fetch_hotels_serpapi(
                 "latitude": lat,
                 "longitude": lng,
                 "amenities": item.get("amenities", []),
-                "stars": int(rating_val),
+                "stars": stars_val,
+                "score": round(score, 2),
             })
         
-        return hotels
+        # Skora göre sırala
+        hotels.sort(key=lambda h: h.get("score", 0), reverse=True)
+        
+        return hotels[:max_results]
     except Exception as e:
         print(f"Hotel search error: {str(e)}")
         raise
@@ -613,7 +756,7 @@ async def _search_flights_serpapi(
         "gl": "tr",
         "type": "2",  # One way
         "adults": passengers,
-        "api_key": SERPAPI_KEY,
+        "api_key": _get_serpapi_key(),
     }
     
     if return_date:
@@ -808,6 +951,313 @@ Kuralların:
     if not response.text:
         return "Üzgünüm, şu an yanıt oluşturamadım. Tekrar dener misin?"
     return response.text
+
+class PlanCommandRequest(BaseModel):
+    message: str  # "/plan Ankara'dan İstanbul'a 20-25 Temmuz" gibi
+    history: list = []
+    user_plans: list = []
+
+@app.post("/plan")
+async def plan_command(request: PlanCommandRequest):
+    """/plan komutu: Gemini parametreleri çıkarır, SerpAPI'den uçuş+otel çeker."""
+    try:
+        # 1. Gemini ile parametreleri çıkar
+        params = await _extract_plan_params(request.message, request.history)
+
+        if params.get("missing"):
+            # Eksik bilgi varsa düz chat yanıtı döndür
+            return {
+                "status": "need_info",
+                "response": params["missing_message"],
+            }
+
+        departure_city = _normalize_iata(params["departure_city"])
+        arrival_city = _normalize_iata(params["arrival_city"])
+        departure_date = params["departure_date"]
+        return_date = params.get("return_date")
+        budget = params.get("budget")  # TL cinsinden, None ise sınırsız
+
+        # 2. SerpAPI: uçuşlar (1 kredi gidiş, 1 kredi dönüş = 2 kredi toplam round-trip)
+        flights = []
+        return_flights = []
+        if SERPAPI_KEY:
+            try:
+                flights = await _search_flights_serpapi(
+                    departure_city=departure_city,
+                    arrival_city=arrival_city,
+                    departure_date=departure_date,
+                    return_date=return_date,
+                    passengers=1,
+                    currency="TRY",
+                )
+                if return_date:
+                    return_flights = await _search_flights_serpapi(
+                        departure_city=arrival_city,
+                        arrival_city=departure_city,
+                        departure_date=return_date,
+                        passengers=1,
+                        currency="TRY",
+                    )
+            except Exception:
+                pass
+
+        # 3. Google Places: gezilecek yerler (kredi harcanmaz)
+        places = []
+        if GOOGLE_PLACES_API_KEY:
+            try:
+                city_name = _IATA_TO_CITY.get(arrival_city.upper(), arrival_city.lower())
+                coords = CITY_COORDINATES.get(city_name)
+                if coords:
+                    lat, lng = coords
+                    raw_places = await _fetch_places_from_google(lat, lng, radius=5000, max_results=20)
+                    # Filtrele: min 3.0 puan + 25 değerlendirme
+                    filtered = [
+                        p for p in raw_places
+                        if (p.get("rating") or 0) >= 3.0
+                        and (p.get("userRatingsTotal") or 0) >= 25
+                    ]
+                    # Sırala: puan * log10(değerlendirme + 1) — büyükten küçüğe
+                    filtered.sort(
+                        key=lambda p: (p.get("rating") or 0) * math.log10((p.get("userRatingsTotal") or 0) + 1),
+                        reverse=True,
+                    )
+                    places = filtered
+            except Exception:
+                pass
+
+        # 4. SerpAPI: oteller (1 kredi)
+        hotels = []
+        if SERPAPI_KEY and return_date:
+            try:
+                hotels = await _fetch_hotels_serpapi(
+                    city=arrival_city,
+                    check_in=departure_date,
+                    check_out=return_date,
+                    guests=1,
+                    max_results=15,
+                )
+            except Exception:
+                pass
+
+        # 4. Geceleme sayısını hesapla
+        nights = 1
+        if return_date and departure_date:
+            try:
+                nights = (date.fromisoformat(return_date) - date.fromisoformat(departure_date)).days or 1
+            except Exception:
+                nights = 1
+
+        # 5. Bütçeye göre en uygun seçimi belirle
+        def _pick_cheapest_within(items, key, max_val):
+            """Bütçeye sığan en ucuz seçeneği döndürür. Sığan yoksa None."""
+            if not items:
+                return None
+            candidates = [x for x in items if (x.get(key) or 0) > 0]
+            if max_val is not None:
+                candidates = [x for x in candidates if (x.get(key) or 0) <= float(max_val)]
+            if not candidates:
+                return None
+            return min(candidates, key=lambda x: x.get(key) or 0)
+
+        if budget:
+            remaining = float(budget)
+            # Uçuşları ucuzdan pahalıya sırala
+            flights_sorted = sorted(flights, key=lambda x: x.get("price") or 9999999)
+            return_sorted = sorted(return_flights, key=lambda x: x.get("price") or 9999999)
+            hotels_sorted = sorted(hotels, key=lambda x: x.get("pricePerNight") or 9999999)
+
+            best_flight = _pick_cheapest_within(flights_sorted, "price", remaining)
+            remaining -= (best_flight.get("price") or 0) if best_flight else 0
+
+            best_return = _pick_cheapest_within(return_sorted, "price", remaining)
+            remaining -= (best_return.get("price") or 0) if best_return else 0
+
+            hotel_budget_per_night = remaining / nights if nights > 0 else remaining
+            best_hotel = _pick_cheapest_within(hotels_sorted, "pricePerNight", hotel_budget_per_night)
+        else:
+            best_flight = flights[0] if flights else None
+            best_return = return_flights[0] if return_flights else None
+            best_hotel = hotels[0] if hotels else None
+
+        # Toplam maliyet hesapla
+        total_cost = (
+            (best_flight.get("price") or 0 if best_flight else 0)
+            + (best_return.get("price") or 0 if best_return else 0)
+            + ((best_hotel.get("pricePerNight") or 0) * nights if best_hotel else 0)
+        )
+
+        summary = await _generate_plan_summary(
+            departure_city=departure_city,
+            arrival_city=arrival_city,
+            departure_date=departure_date,
+            return_date=return_date,
+            best_flight=best_flight,
+            best_return=best_return,
+            best_hotel=best_hotel,
+            budget=budget,
+            total_cost=total_cost,
+            nights=nights,
+        )
+
+        return {
+            "status": "success",
+            "response": summary,
+            "plan_data": {
+                "departure_city": departure_city,
+                "arrival_city": arrival_city,
+                "departure_date": departure_date,
+                "return_date": return_date,
+                "budget": budget,
+                "total_cost": total_cost,
+                "nights": nights,
+                "best_flight": best_flight,
+                "best_return_flight": best_return,
+                "best_hotel": best_hotel,
+                "all_flights": flights[:10],
+                "all_return_flights": return_flights[:10],
+                "all_hotels": hotels[:10],
+                "all_places": places[:15],
+            },
+        }
+
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+async def _extract_plan_params(message: str, history: list) -> dict:
+    """Gemini ile /plan mesajından seyahat parametrelerini çıkarır."""
+    today_str = date.today().isoformat()
+
+    system_prompt = f"""Sen bir seyahat planlama asistanısın. Kullanıcının mesajından seyahat bilgilerini çıkar.
+
+Bugünün tarihi: {today_str}
+
+JSON formatında yanıt ver, başka hiçbir şey yazma:
+{{
+  "departure_city": "IATA kodu veya şehir adı (örn: IST, Ankara)",
+  "arrival_city": "IATA kodu veya şehir adı (örn: SAW, İstanbul)",
+  "departure_date": "YYYY-MM-DD",
+  "return_date": "YYYY-MM-DD veya null",
+  "budget": null,
+  "missing": false,
+  "missing_message": ""
+}}
+
+"budget" alanı: kullanıcı bütçe belirttiyse sayısal TL değeri (örn: 3000), belirtmediyse null.
+Bütçe örnekleri: "3000 TL", "3bin", "5000 lira", "bütçem 2500" → sayıya çevir.
+
+Eğer kalkış şehri, varış şehri veya tarih eksikse:
+{{
+  "missing": true,
+  "missing_message": "Hangi bilgilerin eksik olduğunu nazikçe Türkçe sor"
+}}
+
+Türkiye IATA kodları — sadece bunları kullan:
+IST=İstanbul Atatürk, SAW=İstanbul Sabiha, ESB=Ankara, ADB=İzmir, AYT=Antalya,
+TZX=Trabzon, ADA=Adana, BJV=Bodrum, DLM=Dalaman/Muğla, GZT=Gaziantep,
+ASR=Kayseri, SZF=Samsun, ERZ=Erzurum, NAV=Nevşehir/Kapadokya, VAN=Van,
+DIY=Diyarbakır, MLX=Malatya, KYA=Konya, MSR=Muş, AJI=Ağrı, NKT=Şırnak,
+KCM=Kahramanmaraş, HTY=Hatay, GZP=Gazipaşa/Alanya, DNZ=Denizli, EDO=Balıkesir,
+EZS=Elazığ, ERC=Erzincan, MQM=Mardin, GNY=Şanlıurfa/GAP, BAL=Batman,
+OGU=Ordu-Giresun, RZV=Rize-Artvin, ISE=Isparta, CKZ=Çanakkale,
+MZH=Amasya-Merzifon, TJK=Tokat, KFS=Kastamonu, KSY=Kars, BGG=Bingöl,
+SXZ=Siirt, TEQ=Tekirdağ-Çorlu, ONQ=Zonguldak, USQ=Uşak, NOP=Sinop
+
+ÖNEMLİ: Havalimanı olmayan şehirler için (Bursa, Kocaeli, Sakarya, Eskişehir vb.)
+"missing: true" döndür ve kullanıcıya en yakın havalimanını belirt."""
+
+    contents = []
+    for msg in history[-6:]:
+        role = "user" if msg.get("role") == "user" else "model"
+        contents.append(Content(role=role, parts=[Part.from_text(msg.get("content", ""))]))
+    contents.append(Content(role="user", parts=[Part.from_text(message)]))
+
+    model = GenerativeModel("gemini-2.5-pro", system_instruction=system_prompt)
+    response = await asyncio.get_event_loop().run_in_executor(
+        None,
+        lambda: model.generate_content(
+            contents,
+            generation_config={"temperature": 0.1, "max_output_tokens": 2048},
+        ),
+    )
+
+    import json, re
+    raw = response.text.strip()
+    # Markdown kod bloğu varsa temizle
+    raw = re.sub(r"^```[a-z]*\n?", "", raw)
+    raw = re.sub(r"\n?```$", "", raw)
+    raw = raw.strip()
+
+    # { ile başlayan kısmı bul
+    start = raw.find("{")
+    if start == -1:
+        return {"missing": True, "missing_message": "Anlayamadım, lütfen tekrar dener misin?"}
+    raw = raw[start:]
+
+    # Eksik kapanış parantezi varsa tamamla
+    open_count = raw.count("{") - raw.count("}")
+    if open_count > 0:
+        # Yarım kalan son key-value'yu temizle: son virgül veya yarım satırı at
+        raw = re.sub(r',\s*"[^"]*"\s*:?\s*[^,}\n]*$', "", raw, flags=re.DOTALL)
+        raw = raw.rstrip().rstrip(",")
+        raw += "}" * open_count
+
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return {"missing": True, "missing_message": "Anlayamadım, lütfen tekrar dener misin?"}
+
+
+async def _generate_plan_summary(
+    departure_city: str,
+    arrival_city: str,
+    departure_date: str,
+    return_date,
+    best_flight,
+    best_return,
+    best_hotel,
+    budget=None,
+    total_cost=0,
+    nights=1,
+) -> str:
+    """Gemini ile bulunan uçuş+otel için Türkçe özet üretir."""
+    flight_info = ""
+    if best_flight:
+        flight_info += f"Gidiş uçuşu: {best_flight.get('airline','')}, {best_flight.get('departure_time','')} - {best_flight.get('arrival_time','')}, {best_flight.get('price','')} TL\n"
+    if best_return:
+        flight_info += f"Dönüş uçuşu: {best_return.get('airline','')}, {best_return.get('departure_time','')} - {best_return.get('arrival_time','')}, {best_return.get('price','')} TL\n"
+    hotel_info = ""
+    if best_hotel:
+        hotel_info = f"Otel: {best_hotel.get('name','')}, {best_hotel.get('stars','')}⭐, gece {best_hotel.get('pricePerNight') or '?'} TL ({nights} gece = {(best_hotel.get('pricePerNight') or 0)*nights} TL)\n"
+
+    if not flight_info and not hotel_info:
+        return f"✈️ {departure_city} → {arrival_city} için {departure_date} tarihli uçuş ve otel araması yapıldı ancak sonuç bulunamadı. Tarihleri veya şehirleri değiştirerek tekrar deneyebilirsin."
+
+    budget_info = ""
+    if budget:
+        fits = total_cost <= budget
+        budget_info = f"\nKullanıcının bütçesi: {budget} TL\nToplam tahmini maliyet: {total_cost} TL\nBütçeye {'✅ sığıyor' if fits else '❌ sığmıyor'}"
+
+    prompt = f"""Kullanıcı {departure_city}'dan {arrival_city}'a {departure_date} tarihli seyahat planı istedi.
+{'Dönüş tarihi: ' + return_date + ' (' + str(nights) + ' gece)' if return_date else 'Tek yön'}
+
+Bulunan en iyi seçenekler:
+{flight_info}{hotel_info}{budget_info}
+
+Bunu kısa, samimi ve Türkçe olarak özetle. 2-3 cümle yeterli. Fiyatları ve toplam maliyeti belirt.
+{'Bütçeye sığıp sığmadığını açıkça belirt.' if budget else ''}
+Sonuna "Planı kaydetmek ister misin?" diye sor."""
+
+    model = GenerativeModel("gemini-2.5-pro")
+    response = await asyncio.get_event_loop().run_in_executor(
+        None,
+        lambda: model.generate_content(
+            prompt,
+            generation_config={"temperature": 0.7, "max_output_tokens": 512},
+        ),
+    )
+    return response.text.strip()
+
 
 if __name__ == "__main__":
     import uvicorn

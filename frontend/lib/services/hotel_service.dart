@@ -7,7 +7,9 @@ class HotelService {
     return 'http://localhost:8004';
   }
 
-  final http.Client _client = http.Client();
+  final http.Client _client;
+
+  HotelService({http.Client? client}) : _client = client ?? http.Client();
 
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
@@ -21,7 +23,7 @@ class HotelService {
     int guests = 1,
     double? minRating,
     double? maxPrice,
-    int maxResults = 15,
+    int maxResults = 50,
   }) async {
     final body = {
       'city': city,
@@ -31,6 +33,7 @@ class HotelService {
     };
     if (minRating != null) body['min_rating'] = minRating;
     if (maxPrice != null) body['max_price'] = maxPrice;
+    body['max_results'] = maxResults;
 
     final response = await _client.post(
       Uri.parse('$_baseUrl/search-hotels'),

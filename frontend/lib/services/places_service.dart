@@ -9,7 +9,9 @@ class PlacesService {
     return 'http://localhost:8004';
   }
 
-  final http.Client _client = http.Client();
+  final http.Client _client;
+
+  PlacesService({http.Client? client}) : _client = client ?? http.Client();
 
   Map<String, String> get _headers => {
     'Content-Type': 'application/json',

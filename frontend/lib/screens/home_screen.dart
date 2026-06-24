@@ -623,7 +623,9 @@ class _UserAvatarState extends State<_UserAvatar> {
       radius: widget.radius,
       backgroundImage: NetworkImage(widget.photoUrl),
       onBackgroundImageError: (_, __) {
-        if (mounted) setState(() => _hasError = true);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) setState(() => _hasError = true);
+        });
       },
     );
   }

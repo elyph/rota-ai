@@ -27,6 +27,11 @@ frontend/.flutter-plugins
 frontend/.flutter-plugins-dependencies
 
 # =========================
+# ARAÇLAR
+# =========================
+.commandcode/
+
+# =========================
 # IDE VE SİSTEM DOSYALARI
 # =========================
 .vscode/

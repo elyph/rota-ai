@@ -3,7 +3,7 @@ import '../services/hotel_service.dart';
 import '../models/hotel.dart';
 import '../helpers/turkey_provinces.dart';
 
-enum SortOption { recommended, priceLowToHigh, priceHighToLow, rating }
+enum SortOption { recommended, priceLowToHigh, priceHighToLow, score }
 
 class HotelsScreen extends StatefulWidget {
   const HotelsScreen({super.key});
@@ -105,8 +105,8 @@ class _HotelsScreenState extends State<HotelsScreen> {
         case SortOption.priceHighToLow:
           _hotels.sort((a, b) => (b.pricePerNight ?? 0).compareTo(a.pricePerNight ?? 0));
           break;
-        case SortOption.rating:
-          _hotels.sort((a, b) => b.rating.compareTo(a.rating));
+        case SortOption.score:
+          _hotels.sort((a, b) => b.score.compareTo(a.score));
           break;
         case SortOption.recommended:
           break;
@@ -270,7 +270,7 @@ class _HotelsScreenState extends State<HotelsScreen> {
                 ),
                 const SizedBox(height: 12),
                 // Hotel list
-                ...List.generate(_hotels.length, (i) => _buildHotelCard(_hotels[i])),
+                ...List.generate(_hotels.length, (i) => _buildHotelCard(_hotels[i], () => _showHotelDetail(_hotels[i]))),
               ] else
                 Padding(
                   padding: const EdgeInsets.only(top: 60),
@@ -356,13 +356,15 @@ class _HotelsScreenState extends State<HotelsScreen> {
     switch (_sortOption) {
       case SortOption.priceLowToHigh: return 'Ucuz';
       case SortOption.priceHighToLow: return 'Pahalı';
-      case SortOption.rating: return 'Puan';
+      case SortOption.score: return 'Puan';
       default: return 'Önerilen';
     }
   }
 
-  Widget _buildHotelCard(Hotel hotel) {
-    return Container(
+  Widget _buildHotelCard(Hotel hotel, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -443,6 +445,154 @@ class _HotelsScreenState extends State<HotelsScreen> {
           ),
         ],
       ),
+      ),
+    );
+  }
+
+  void _showHotelDetail(Hotel hotel) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      isScrollControlled: true,
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.7,
+          maxChildSize: 0.92,
+          minChildSize: 0.4,
+          expand: false,
+          builder: (context, scrollController) {
+            return SingleChildScrollView(
+              controller: scrollController,
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40, height: 4,
+                      decoration: BoxDecoration(color: const Color(0xFFE2E8F0), borderRadius: BorderRadius.circular(2)),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: SizedBox(
+                          width: 130,
+                          height: 130,
+                          child: hotel.imageUrl.isNotEmpty
+                              ? Image.network(hotel.imageUrl, fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Container(
+                                    color: const Color(0xFFF1F5F9),
+                                    child: const Icon(Icons.hotel_rounded, size: 48, color: Color(0xFF94A3B8)),
+                                  ))
+                              : Container(
+                                  color: const Color(0xFFF1F5F9),
+                                  child: const Icon(Icons.hotel_rounded, size: 48, color: Color(0xFF94A3B8)),
+                                ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(hotel.name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFEF3C7),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.star_rounded, size: 18, color: Color(0xFFF59E0B)),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        hotel.rating.toStringAsFixed(1),
+                                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF92400E)),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  '${hotel.reviewCount} değerlendirme',
+                                  style: const TextStyle(fontSize: 13, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                for (int i = 0; i < hotel.stars; i++)
+                                  const Icon(Icons.star_rounded, size: 18, color: Color(0xFFFBBF24)),
+                                for (int i = hotel.stars; i < 5; i++)
+                                  const Icon(Icons.star_rounded, size: 18, color: Color(0xFFE2E8F0)),
+                                const SizedBox(width: 8),
+                                Text('${hotel.stars} yıldız', style: const TextStyle(fontSize: 13, color: Color(0xFF64748B))),
+                              ],
+                            ),
+                            if (hotel.pricePerNight != null) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                '₺${hotel.pricePerNight!.toStringAsFixed(0)} / gece',
+                                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF5374FF)),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (hotel.address.isNotEmpty) ...[
+                    const SizedBox(height: 24),
+                    const Text('Adres', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
+                    const SizedBox(height: 8),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.location_on_rounded, size: 18, color: Color(0xFF64748B)),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text(hotel.address, style: const TextStyle(fontSize: 14, color: Color(0xFF64748B), height: 1.4))),
+                      ],
+                    ),
+                  ],
+                  if (hotel.amenities.isNotEmpty) ...[
+                    const SizedBox(height: 24),
+                    const Text('Olanaklar', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: hotel.amenities.map((a) {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(a, style: const TextStyle(fontSize: 13, color: Color(0xFF334155), fontWeight: FontWeight.w500)),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -483,7 +633,7 @@ class _HotelsScreenState extends State<HotelsScreen> {
                         final province = turkeyProvinces[index];
                         return ListTile(
                           contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                          title: Text(province.name, style: const TextStyle(fontWeight: FontWeight.w500)),
+                          title: Text(province.name, style: const TextStyle(fontWeight: FontWeight.w500, color: Color(0xFF0F172A))),
                           onTap: () {
                             setState(() {
                               _selectedProvinceKey = province.key;

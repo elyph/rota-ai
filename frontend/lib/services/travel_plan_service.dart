@@ -14,6 +14,8 @@ class TravelPlanService {
     Map<String, dynamic>? hotelInfo,
     List<Map<String, dynamic>>? selectedPlaces,
     String? itinerary,
+    double? budget,
+    double? estimatedCost,
   }) async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return null;
@@ -30,6 +32,8 @@ class TravelPlanService {
       'selected_places': selectedPlaces,
       'itinerary': itinerary,
       'status': 'planned',
+      if (budget != null) 'budget': budget,
+      if (estimatedCost != null) 'estimated_cost': estimatedCost,
     }).select().single();
 
     return response;

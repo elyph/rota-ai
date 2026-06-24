@@ -3,8 +3,10 @@ import 'package:http/http.dart' as http;
 import '../models/flight_offer.dart';
 
 class FlightService {
-  final http.Client _client = http.Client();
+  final http.Client _client;
   static const String _baseUrl = 'http://localhost:8004';
+
+  FlightService({http.Client? client}) : _client = client ?? http.Client();
 
   Future<List<FlightOffer>> searchFlights({
     required String origin,

@@ -10,6 +10,7 @@ class Hotel {
   final double longitude;
   final List<String> amenities;
   final int stars;
+  final double score;
 
   Hotel({
     required this.id,
@@ -23,6 +24,7 @@ class Hotel {
     required this.longitude,
     required this.amenities,
     required this.stars,
+    required this.score,
   });
 
   factory Hotel.fromJson(Map<String, dynamic> json) {
@@ -45,6 +47,7 @@ class Hotel {
       longitude: parseDouble(json['longitude']),
       amenities: (json['amenities'] as List?)?.map((e) => e.toString()).toList() ?? [],
       stars: (json['stars'] is int) ? json['stars'] : (int.tryParse(json['stars']?.toString() ?? '0') ?? 0),
+      score: parseDouble(json['score']),
     );
   }
 
@@ -61,6 +64,7 @@ class Hotel {
       'longitude': longitude,
       'amenities': amenities,
       'stars': stars,
+      'score': score,
     };
   }
 }

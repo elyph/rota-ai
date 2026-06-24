@@ -16,6 +16,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late final AuthService _authService;
   bool _isLogin = true;
   bool _loading = false;
+  late Future<List<Map<String, dynamic>>> _plansFuture;
 
   final _loginEmailController = TextEditingController();
   final _loginPasswordController = TextEditingController();
@@ -28,6 +29,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     _authService = AuthService();
+    _reloadPlans();
+  }
+
+  void _reloadPlans() {
+    setState(() {
+      _plansFuture = TravelPlanService().getMyPlans();
+    });
   }
 
   @override
@@ -451,7 +459,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildMyPlansSection() {
-    final planService = TravelPlanService();
 
     return Container(
       width: double.infinity,
@@ -479,7 +486,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               GestureDetector(
                 onTap: () async {
                   final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const PlanWizardScreen()));
-                  if (result == true) setState(() {});
+                  if (result == true) _reloadPlans();
                 },
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -501,7 +508,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 14),
           FutureBuilder<List<Map<String, dynamic>>>(
-            future: planService.getMyPlans(),
+            future: _plansFuture,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(
@@ -548,7 +555,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return GestureDetector(
       onTap: () async {
         final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => PlanDetailScreen(plan: plan)));
-        if (result == true) setState(() {});
+        if (result == true) _reloadPlans();
       },
       child: Container(
         width: double.infinity,
