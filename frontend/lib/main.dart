@@ -60,7 +60,6 @@ class _MainNavigationState extends State<MainNavigation> {
     const FlightsScreen(),
     const HotelsScreen(),
     const PlacesScreen(),
-    const ProfileScreen(),
   ];
 
   @override
@@ -69,11 +68,14 @@ class _MainNavigationState extends State<MainNavigation> {
       backgroundColor: const Color(0xFFF8FAFC),
       body: Stack(
         children: [
-          // Screens
-          IndexedStack(
-            index: _selectedIndex,
-            children: _screens,
-          ),
+          // Screens — profil tab'ı her açılışta yeniden yüklenir
+          if (_selectedIndex == 4)
+            const ProfileScreen()
+          else
+            IndexedStack(
+              index: _selectedIndex,
+              children: _screens,
+            ),
           // Chatbot FAB - above the navbar, right side
           if (_selectedIndex == 0)
             Positioned(

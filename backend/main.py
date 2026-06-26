@@ -1026,11 +1026,13 @@ async def plan_command(request: PlanCommandRequest):
                 pass
 
         # 4. SerpAPI: oteller (1 kredi)
+        # Google Hotels IATA kodu anlamaz, şehir adı lazım
+        hotel_city = _IATA_TO_CITY.get(arrival_city.upper(), arrival_city)
         hotels = []
         if SERPAPI_KEY and return_date:
             try:
                 hotels = await _fetch_hotels_serpapi(
-                    city=arrival_city,
+                    city=hotel_city,
                     check_in=departure_date,
                     check_out=return_date,
                     guests=1,
